@@ -287,6 +287,32 @@ Para autenticação no Azure durante o deploy, configure estes secrets no reposi
 - `AZURE_SUBSCRIPTION_ID`
 - `AZURE_TENANT_ID`
 
+### Autenticação via Variáveis de Ambiente (ARM_*)
+
+**NÃO usar** `azure/login@v2` action. Use variáveis de ambiente no nível do job:
+
+```yaml
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_name: ${{ inputs.name || 'paas' }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: terraform
+```
+
+**Por que ARM_* ao invés de azure/login?**
+- Terraform usa diretamente as variáveis `ARM_*`
+- Evita problemas com OIDC/Federated Credentials
+- Mais simples e compatível com Service Principal + Client Secret
+
 ### Backend do Terraform (Azure Storage)
 
 O state remoto deve usar Storage Account padrão da plataforma:

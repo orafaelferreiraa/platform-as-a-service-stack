@@ -74,7 +74,8 @@ jobs:
             -backend-config="resource_group_name=rg-paas" \
             -backend-config="storage_account_name=storagepaas" \
             -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ env.TF_VAR_name }}.terraform.tfstate"
+            -backend-config="key=${{ env.TF_VAR_name }}.terraform.tfstate" \
+            -backend-config="use_azuread_auth=true"
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
