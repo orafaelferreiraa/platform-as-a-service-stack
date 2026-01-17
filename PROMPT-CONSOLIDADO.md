@@ -275,35 +275,6 @@ inputs:
 - ❌ `location` (usar default)
 - ❌ `sql_admin_login` / `sql_admin_object_id`
 
-
-## Deploy - Configuração Padrão
-
-### Secrets obrigatórios no GitHub Actions
-
-Para autenticação no Azure durante o deploy, configure estes secrets no repositório:
-
-- `AZURE_CLIENT_ID`
-- `AZURE_CLIENT_SECRET`
-- `AZURE_SUBSCRIPTION_ID`
-- `AZURE_TENANT_ID`
-
-### Backend do Terraform (Azure Storage)
-
-O state remoto deve usar Storage Account padrão da plataforma:
-
-```hcl
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "rg-paas"
-    storage_account_name = "storagepaas"
-    container_name       = "tfstate"
-    key                  = "infra.terraform.tfstate"
-  }
-}
-```
-
-Esses valores devem ser refletidos na pipeline de `terraform init`.
-
 ---
 
 ## Integração com Observability
