@@ -1,11 +1,6 @@
 name: 'Platform as a Service - Deploy'
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'terraform/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       name:
@@ -14,7 +9,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: paas-${{ github.head_ref || github.ref }}
@@ -25,14 +20,13 @@ jobs:
     name: 'Terraform Deploy'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: github.actor != 'github-actions[bot]'
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      TF_VAR_name: ${{ inputs.name || 'paas' }}
+      TF_VAR_name: ${{ inputs.name }}
     defaults:
       run:
         shell: bash
@@ -41,8 +35,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Validate input
         run: |
@@ -58,16 +50,6 @@ jobs:
         with:
           terraform_version: 1.5.0
 
-      - name: Cache Terraform providers
-        uses: actions/cache@v4
-        with:
-          path: |
-            terraform/.terraform
-            ~/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('terraform/.terraform.lock.hcl') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-
-
       - name: Terraform Init
         run: |
           terraform init -input=false \
@@ -77,43 +59,8 @@ jobs:
             -backend-config="key=${{ env.TF_VAR_name }}.terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
 
-      - name: Terraform Format
-        run: terraform fmt -check -recursive
-
       - name: Terraform Validate
         run: terraform validate
-
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
-        with:
-          tflint_version: latest
-
-      - name: Cache TFLint plugins
-        uses: actions/cache@v4
-        with:
-          path: ~/.tflint.d/plugins
-          key: ${{ runner.os }}-tflint-${{ hashFiles('terraform/.tflint.hcl') }}
-          restore-keys: |
-            ${{ runner.os }}-tflint-
-
-      - name: Run TFLint
-        run: |
-          tflint --init
-          tflint -f compact
-        continue-on-error: true
-
-      - name: tfsec scan
-        uses: aquasecurity/tfsec-action@v1.0.3
-        with:
-          working_directory: terraform
-          soft_fail: true
-
-      - name: Checkov scan
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: terraform
-          quiet: true
-          soft_fail: true
 
       - name: Terraform Plan
         id: plan

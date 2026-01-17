@@ -315,7 +315,7 @@ jobs:
 
 ### Backend do Terraform (Azure Storage)
 
-O state remoto deve usar Storage Account padrão da plataforma:
+O state remoto deve usar Storage Account padrão da plataforma com **autenticação via Azure AD**:
 
 ```hcl
 terraform {
@@ -324,8 +324,29 @@ terraform {
     storage_account_name = "storagepaas"
     container_name       = "tfstate"
     key                  = "infra.terraform.tfstate"
+    use_azuread_auth     = true  # OBRIGATÓRIO - Storage Account não aceita chaves
   }
 }
+```
+
+**Por que `use_azuread_auth = true`?**
+- A Storage Account `storagepaas` está configurada para **não aceitar autenticação por chave** (apenas Azure AD)
+- Faz o Terraform usar as credenciais `ARM_*` (Azure AD/Service Principal) para acessar o state
+- Evita o erro: `KeyBasedAuthenticationNotPermitted`
+
+**Pré-requisito:** O Service Principal precisa ter a role **Storage Blob Data Contributor** na Storage Account `storagepaas`.
+
+Na pipeline, o `terraform init` deve incluir:
+
+```yaml
+- name: Terraform Init
+  run: |
+    terraform init -input=false \
+      -backend-config="resource_group_name=rg-paas" \
+      -backend-config="storage_account_name=storagepaas" \
+      -backend-config="container_name=tfstate" \
+      -backend-config="key=${{ env.TF_VAR_name }}.terraform.tfstate" \
+      -backend-config="use_azuread_auth=true"
 ```
 
 Esses valores devem ser refletidos na pipeline de `terraform init`.
