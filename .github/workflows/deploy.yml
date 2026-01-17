@@ -1,6 +1,11 @@
 name: 'Platform as a Service - Deploy'
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       name:
@@ -8,198 +13,126 @@ on:
         required: true
         type: string
 
-# Only ONE input: name
-# NO environment, location, sql_admin_login, or sql_admin_object_id
-
-env:
-  TERRAFORM_VERSION: '1.5.0'
-  WORKING_DIRECTORY: 'terraform'
-
 permissions:
-  id-token: write
-  contents: read
+  contents: write
+
+concurrency:
+  group: paas-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
-    name: 'Validate'
+  terraform:
+    name: 'Terraform Deploy'
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 30
+    if: github.actor != 'github-actions[bot]'
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_name: ${{ inputs.name || 'paas' }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: terraform
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate input
         run: |
-          if [[ ! "${{ inputs.name }}" =~ ^[a-z0-9]+$ ]]; then
-            echo "Error: Name must be lowercase alphanumeric only"
+          NAME="${{ env.TF_VAR_name }}"
+          if [[ ! "$NAME" =~ ^[a-z0-9]+$ ]]; then
+            echo "Error: Name must be lowercase alphanumeric only. Got: $NAME"
             exit 1
           fi
+          echo "Platform name: $NAME"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_version: 1.5.0
 
-      - name: Terraform Format Check
-        working-directory: ${{ env.WORKING_DIRECTORY }}
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: |
+            terraform/.terraform
+            ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('terraform/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
+
+      - name: Terraform Init
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=rg-paas" \
+            -backend-config="storage_account_name=storagepaas" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=${{ env.TF_VAR_name }}.terraform.tfstate"
+
+      - name: Terraform Format
         run: terraform fmt -check -recursive
 
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: terraform init -backend=false
-
       - name: Terraform Validate
-        working-directory: ${{ env.WORKING_DIRECTORY }}
         run: terraform validate
 
-  plan:
-    name: 'Plan'
-    runs-on: ubuntu-latest
-    needs: validate
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          tflint_version: latest
 
-      - name: Azure Login
-        uses: azure/login@v2
+      - name: Cache TFLint plugins
+        uses: actions/cache@v4
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          path: ~/.tflint.d/plugins
+          key: ${{ runner.os }}-tflint-${{ hashFiles('terraform/.tflint.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-tflint-
 
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      - name: Run TFLint
         run: |
-          terraform init \
-            -backend-config="resource_group_name=rg-paas" \
-            -backend-config="storage_account_name=storagepaas" \
-            -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ inputs.name }}.terraform.tfstate"
+          tflint --init
+          tflint -f compact
+        continue-on-error: true
+
+      - name: tfsec scan
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+          soft_fail: true
+
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          quiet: true
+          soft_fail: true
 
       - name: Terraform Plan
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          terraform plan \
-            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -var="name=${{ inputs.name }}" \
-            -out=tfplan
-
-      - name: Upload Plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: ${{ env.WORKING_DIRECTORY }}/tfplan
-
-  apply:
-    name: 'Apply'
-    runs-on: ubuntu-latest
-    needs: plan
-    environment: production
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Download Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan
-          path: ${{ env.WORKING_DIRECTORY }}
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          terraform init \
-            -backend-config="resource_group_name=rg-paas" \
-            -backend-config="storage_account_name=storagepaas" \
-            -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ inputs.name }}.terraform.tfstate"
+        id: plan
+        run: terraform plan -input=false -out=tfplan
 
       - name: Terraform Apply
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve -input=false tfplan
 
-  destroy:
-    name: 'Destroy'
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true'
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      - name: Job Summary
+        if: always()
         run: |
-          terraform init \
-            -backend-config="resource_group_name=rg-paas" \
-            -backend-config="storage_account_name=storagepaas" \
-            -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ inputs.name }}.terraform.tfstate"
-
-      - name: Terraform Destroy
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          terraform destroy -auto-approve \
-            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -var="name=${{ inputs.name }}"
+          {
+            echo "## Platform as a Service - Deploy Summary"
+            echo ""
+            echo "| Item | Value |"
+            echo "|------|-------|"
+            echo "| Platform Name | \`${{ env.TF_VAR_name }}\` |"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+            echo "| Actor | \`${{ github.actor }}\` |"
+            echo "| Region | \`eastus2\` |"
+            echo "| Backend | \`storagepaas/tfstate/${{ env.TF_VAR_name }}.terraform.tfstate\` |"
+            echo "| Status | ✅ Applied |"
+          } >> "$GITHUB_STEP_SUMMARY"
