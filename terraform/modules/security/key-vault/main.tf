@@ -51,7 +51,7 @@ resource "azurerm_role_assignment" "deployer_secrets_officer" {
 
 # RBAC assignment for managed identity (if provided)
 resource "azurerm_role_assignment" "managed_identity_secrets_user" {
-  count = var.managed_identity_principal_id != null ? 1 : 0
+  count = var.enable_managed_identity_access ? 1 : 0
 
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets User"

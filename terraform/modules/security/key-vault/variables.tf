@@ -64,6 +64,12 @@ variable "network_acls" {
   default = null
 }
 
+variable "enable_managed_identity_access" {
+  description = "Enable RBAC assignment for managed identity"
+  type        = bool
+  default     = false
+}
+
 variable "managed_identity_principal_id" {
   description = "Principal ID of managed identity to grant secrets access"
   type        = string

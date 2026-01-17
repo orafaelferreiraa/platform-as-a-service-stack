@@ -75,10 +75,11 @@ module "key_vault" {
   source = "./modules/security/key-vault"
   count  = var.enable_key_vault ? 1 : 0
 
-  name                          = module.naming.key_vault
-  resource_group_name           = module.resource_group.name
-  location                      = var.location
-  managed_identity_principal_id = module.managed_identity.principal_id
+  name                           = module.naming.key_vault
+  resource_group_name            = module.resource_group.name
+  location                       = var.location
+  enable_managed_identity_access = true
+  managed_identity_principal_id  = module.managed_identity.principal_id
 
   # Store SQL admin password if SQL is enabled
   secrets = var.enable_sql ? {
