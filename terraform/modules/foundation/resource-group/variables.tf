@@ -1,20 +1,16 @@
-# =============================================================================
-# Resource Group Module - Variables
-# =============================================================================
-
 variable "name" {
-  description = "Nome do Resource Group"
+  description = "Name of the resource group"
   type        = string
 }
 
 variable "location" {
-  description = "Região Azure"
+  description = "Azure region for the resource group"
   type        = string
   default     = "eastus2"
 }
 
 variable "tags" {
-  description = "Tags"
+  description = "Tags to apply to the resource group"
   type        = map(string)
   default     = {}
 }

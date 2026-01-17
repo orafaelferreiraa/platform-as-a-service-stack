@@ -1,80 +1,89 @@
-# =============================================================================
-# Naming Module - Outputs
-# =============================================================================
-
-output "names" {
-  description = "Map com todos os nomes de recursos gerados"
-  value       = local.names
+output "name" {
+  description = "Normalized name"
+  value       = local.name
 }
 
-output "resource_group" {
-  value = local.names.resource_group
-}
-
-output "managed_identity" {
-  value = local.names.managed_identity
-}
-
-output "key_vault" {
-  value = local.names.key_vault
-}
-
-output "storage_account" {
-  value = local.names.storage_account
-}
-
-output "log_analytics_workspace" {
-  value = local.names.log_analytics_workspace
-}
-
-output "application_insights" {
-  value = local.names.application_insights
-}
-
-output "service_bus_namespace" {
-  value = local.names.service_bus_namespace
-}
-
-output "event_grid_topic" {
-  value = local.names.event_grid_topic
-}
-
-output "sql_server" {
-  value = local.names.sql_server
-}
-
-output "sql_database" {
-  value = local.names.sql_database
-}
-
-output "redis_cache" {
-  value = local.names.redis_cache
-}
-
-output "container_apps_env" {
-  value = local.names.container_apps_env
-}
-
-output "virtual_network" {
-  value = local.names.virtual_network
-}
-
-output "subnet" {
-  value = local.names.subnet
-}
-
-output "nsg" {
-  value = local.names.nsg
-}
-
-output "default_tags" {
-  value = local.default_tags
-}
-
-output "base_name" {
-  value = local.base_name
+output "location" {
+  description = "Azure location"
+  value       = var.location
 }
 
 output "location_abbr" {
-  value = local.location_abbr
+  description = "Abbreviated location code"
+  value       = local.location_abbr
+}
+
+output "base_name" {
+  description = "Base name pattern (name-location_abbr)"
+  value       = local.base_name_pattern
+}
+
+output "resource_group" {
+  description = "Resource group name"
+  value       = "rg-${local.base_name_pattern}"
+}
+
+output "managed_identity" {
+  description = "User assigned managed identity name"
+  value       = "id-${local.base_name_pattern}"
+}
+
+output "key_vault" {
+  description = "Key Vault name (no hyphens, max 24 chars)"
+  value       = substr("kv${local.name}${local.location_abbr}", 0, 24)
+}
+
+output "storage_account" {
+  description = "Storage account name (no hyphens, max 24 chars)"
+  value       = substr("st${local.name}${local.location_abbr}", 0, 24)
+}
+
+output "log_analytics" {
+  description = "Log Analytics workspace name"
+  value       = "log-${local.base_name_pattern}"
+}
+
+output "app_insights" {
+  description = "Application Insights name"
+  value       = "appi-${local.base_name_pattern}"
+}
+
+output "service_bus" {
+  description = "Service Bus namespace name"
+  value       = "sb-${local.base_name_pattern}"
+}
+
+output "event_grid_topic" {
+  description = "Event Grid topic name"
+  value       = "evgt-${local.base_name_pattern}"
+}
+
+output "sql_server" {
+  description = "SQL Server name"
+  value       = "sql-${local.base_name_pattern}"
+}
+
+output "sql_database" {
+  description = "SQL Database name"
+  value       = "sqldb-${local.base_name_pattern}"
+}
+
+output "redis_cache" {
+  description = "Redis Cache name"
+  value       = "redis-${local.base_name_pattern}"
+}
+
+output "container_apps_env" {
+  description = "Container Apps Environment name"
+  value       = "cae-${local.base_name_pattern}"
+}
+
+output "vnet" {
+  description = "Virtual Network name"
+  value       = "vnet-${local.base_name_pattern}"
+}
+
+output "default_tags" {
+  description = "Default tags for all resources"
+  value       = local.default_tags
 }

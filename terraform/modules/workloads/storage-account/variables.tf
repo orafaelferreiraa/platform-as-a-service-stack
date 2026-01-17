@@ -1,106 +1,101 @@
-# =============================================================================
-# Storage Account Module - Variables
-# =============================================================================
-
 variable "name" {
-  type = string
+  description = "Name of the storage account (lowercase, no hyphens, max 24 chars)"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9]{3,24}$", var.name))
+    error_message = "Storage account name must be 3-24 lowercase alphanumeric characters."
+  }
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the resource group"
+  type        = string
 }
 
 variable "location" {
-  type    = string
-  default = "eastus2"
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
 variable "account_tier" {
-  type    = string
-  default = "Standard"
+  description = "Storage account tier"
+  type        = string
+  default     = "Standard"
+
+  validation {
+    condition     = contains(["Standard", "Premium"], var.account_tier)
+    error_message = "Account tier must be 'Standard' or 'Premium'."
+  }
 }
 
 variable "account_replication_type" {
-  type    = string
-  default = "LRS"
+  description = "Storage account replication type"
+  type        = string
+  default     = "LRS"
+
+  validation {
+    condition     = contains(["LRS", "GRS", "RAGRS", "ZRS", "GZRS", "RAGZRS"], var.account_replication_type)
+    error_message = "Invalid replication type."
+  }
 }
 
 variable "account_kind" {
-  type    = string
-  default = "StorageV2"
+  description = "Storage account kind"
+  type        = string
+  default     = "StorageV2"
 }
 
-variable "https_traffic_only_enabled" {
-  type    = bool
-  default = true
-}
-
-variable "min_tls_version" {
-  type    = string
-  default = "TLS1_2"
-}
-
-variable "allow_public_access" {
-  type    = bool
-  default = false
-}
-
-variable "enable_blob_properties" {
-  type    = bool
-  default = true
+variable "shared_access_key_enabled" {
+  description = "Enable shared access key authentication"
+  type        = bool
+  default     = false
 }
 
 variable "enable_versioning" {
-  type    = bool
-  default = true
+  description = "Enable blob versioning"
+  type        = bool
+  default     = true
 }
 
-variable "container_delete_retention_days" {
-  type    = number
-  default = 7
+variable "soft_delete_retention_days" {
+  description = "Days to retain soft deleted blobs (0 to disable)"
+  type        = number
+  default     = 7
 }
 
-variable "blob_delete_retention_days" {
-  type    = number
-  default = 7
+variable "container_soft_delete_retention_days" {
+  description = "Days to retain soft deleted containers (0 to disable)"
+  type        = number
+  default     = 7
 }
 
-variable "enable_network_rules" {
-  type    = bool
-  default = false
+variable "managed_identity_id" {
+  description = "User assigned managed identity resource ID"
+  type        = string
+  default     = null
 }
 
-variable "network_rules_default_action" {
-  type    = string
-  default = "Deny"
+variable "managed_identity_principal_id" {
+  description = "Principal ID of managed identity for RBAC"
+  type        = string
+  default     = null
 }
 
-variable "network_rules_ip_rules" {
-  type    = list(string)
-  default = []
-}
-
-variable "network_rules_subnet_ids" {
-  type    = list(string)
-  default = []
-}
-
-variable "network_rules_bypass" {
-  type    = list(string)
-  default = ["AzureServices"]
-}
-
-variable "containers" {
-  type    = list(string)
-  default = []
-}
-
-variable "identity_principal_id" {
-  type    = string
+variable "network_rules" {
+  description = "Network rules configuration"
+  type = object({
+    default_action             = string
+    bypass                     = list(string)
+    ip_rules                   = optional(list(string), [])
+    virtual_network_subnet_ids = optional(list(string), [])
+  })
   default = null
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }

@@ -1,100 +1,109 @@
-# =============================================================================
-# SQL Module - Variables
-# =============================================================================
-
 variable "server_name" {
-  type = string
+  description = "Name of the SQL Server"
+  type        = string
 }
 
 variable "database_name" {
-  type = string
+  description = "Name of the SQL Database"
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the resource group"
+  type        = string
 }
 
 variable "location" {
-  type    = string
-  default = "eastus2"
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
 variable "sql_version" {
-  type    = string
-  default = "12.0"
+  description = "SQL Server version"
+  type        = string
+  default     = "12.0"
 }
 
 variable "administrator_login" {
-  type    = string
-  default = "sql_admin"
-}
-
-variable "minimum_tls_version" {
-  type    = string
-  default = "1.2"
+  description = "Administrator login (defaults to sql_admin if not set)"
+  type        = string
+  default     = null
 }
 
 variable "public_network_access_enabled" {
-  type    = bool
-  default = true
+  description = "Enable public network access"
+  type        = bool
+  default     = true
 }
 
-variable "azuread_administrator" {
-  type = object({
-    login_username              = string
-    object_id                   = string
-    tenant_id                   = optional(string)
-    azuread_authentication_only = optional(bool, false)
-  })
-  default = null
+variable "managed_identity_id" {
+  description = "User assigned managed identity resource ID"
+  type        = string
+  default     = null
+}
+
+variable "azuread_admin_login" {
+  description = "Azure AD admin login username"
+  type        = string
+  default     = null
+}
+
+variable "azuread_admin_object_id" {
+  description = "Azure AD admin object ID"
+  type        = string
+  default     = null
+}
+
+variable "azuread_authentication_only" {
+  description = "Use Azure AD authentication only"
+  type        = bool
+  default     = false
 }
 
 variable "collation" {
-  type    = string
-  default = "SQL_Latin1_General_CP1_CI_AS"
+  description = "Database collation"
+  type        = string
+  default     = "SQL_Latin1_General_CP1_CI_AS"
 }
 
 variable "max_size_gb" {
-  type    = number
-  default = 2
+  description = "Maximum database size in GB"
+  type        = number
+  default     = 32
 }
 
 variable "sku_name" {
-  type    = string
-  default = "S0"
+  description = "SKU name for the database"
+  type        = string
+  default     = "S0"
 }
 
 variable "zone_redundant" {
-  type    = bool
-  default = false
+  description = "Enable zone redundancy"
+  type        = bool
+  default     = false
 }
 
-variable "auto_pause_delay_in_minutes" {
-  type    = number
-  default = 60
-}
-
-variable "min_capacity" {
-  type    = number
-  default = 0.5
-}
-
-variable "read_replica_count" {
-  type    = number
-  default = 0
-}
-
-variable "read_scale" {
-  type    = bool
-  default = false
+variable "geo_backup_enabled" {
+  description = "Enable geo-redundant backups"
+  type        = bool
+  default     = true
 }
 
 variable "short_term_retention_days" {
-  type    = number
-  default = 7
+  description = "Short-term backup retention in days (1-35)"
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.short_term_retention_days == null || (var.short_term_retention_days >= 1 && var.short_term_retention_days <= 35)
+    error_message = "Short-term retention must be between 1 and 35 days."
+  }
 }
 
 variable "long_term_retention" {
+  description = "Long-term retention policy"
   type = object({
     weekly_retention  = optional(string)
     monthly_retention = optional(string)
@@ -105,28 +114,19 @@ variable "long_term_retention" {
 }
 
 variable "allow_azure_services" {
-  type    = bool
-  default = true
+  description = "Allow Azure services to access the server"
+  type        = bool
+  default     = true
 }
 
-variable "firewall_rules" {
-  type = list(object({
-    name             = string
-    start_ip_address = string
-    end_ip_address   = string
-  }))
-  default = []
-}
-
-variable "vnet_rules" {
-  type = list(object({
-    name      = string
-    subnet_id = string
-  }))
-  default = []
+variable "subnet_id" {
+  description = "Subnet ID for VNet service endpoint"
+  type        = string
+  default     = null
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }

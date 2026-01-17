@@ -1,37 +1,34 @@
-# =============================================================================
-# Service Bus Module - Outputs
-# =============================================================================
-
 output "id" {
-  value = azurerm_servicebus_namespace.main.id
+  description = "Service Bus namespace resource ID"
+  value       = azurerm_servicebus_namespace.main.id
 }
 
 output "name" {
-  value = azurerm_servicebus_namespace.main.name
+  description = "Service Bus namespace name"
+  value       = azurerm_servicebus_namespace.main.name
 }
 
 output "endpoint" {
-  value = azurerm_servicebus_namespace.main.endpoint
+  description = "Service Bus namespace endpoint"
+  value       = azurerm_servicebus_namespace.main.endpoint
 }
 
-output "default_primary_connection_string" {
-  value     = azurerm_servicebus_namespace.main.default_primary_connection_string
-  sensitive = true
-}
-
-output "default_primary_key" {
-  value     = azurerm_servicebus_namespace.main.default_primary_key
-  sensitive = true
+output "identity_principal_id" {
+  description = "System assigned identity principal ID"
+  value       = azurerm_servicebus_namespace.main.identity[0].principal_id
 }
 
 output "queue_ids" {
-  value = { for k, v in azurerm_servicebus_queue.queues : k => v.id }
+  description = "Map of queue names to their resource IDs"
+  value       = { for k, v in azurerm_servicebus_queue.queues : k => v.id }
 }
 
 output "topic_ids" {
-  value = { for k, v in azurerm_servicebus_topic.topics : k => v.id }
+  description = "Map of topic names to their resource IDs"
+  value       = { for k, v in azurerm_servicebus_topic.topics : k => v.id }
 }
 
 output "subscription_ids" {
-  value = { for k, v in azurerm_servicebus_subscription.subscriptions : k => v.id }
+  description = "Map of subscription keys to their resource IDs"
+  value       = { for k, v in azurerm_servicebus_subscription.subscriptions : k => v.id }
 }

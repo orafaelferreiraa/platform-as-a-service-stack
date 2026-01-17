@@ -1,34 +1,34 @@
-# =============================================================================
-# Storage Account Module - Outputs
-# =============================================================================
-
 output "id" {
-  value = azurerm_storage_account.main.id
+  description = "Storage account resource ID"
+  value       = azurerm_storage_account.main.id
 }
 
 output "name" {
-  value = azurerm_storage_account.main.name
+  description = "Storage account name"
+  value       = azurerm_storage_account.main.name
 }
 
 output "primary_blob_endpoint" {
-  value = azurerm_storage_account.main.primary_blob_endpoint
+  description = "Primary blob endpoint"
+  value       = azurerm_storage_account.main.primary_blob_endpoint
 }
 
-output "primary_connection_string" {
-  value     = azurerm_storage_account.main.primary_connection_string
-  sensitive = true
+output "primary_queue_endpoint" {
+  description = "Primary queue endpoint"
+  value       = azurerm_storage_account.main.primary_queue_endpoint
 }
 
-output "primary_access_key" {
-  value     = azurerm_storage_account.main.primary_access_key
-  sensitive = true
+output "primary_table_endpoint" {
+  description = "Primary table endpoint"
+  value       = azurerm_storage_account.main.primary_table_endpoint
 }
 
-output "secondary_access_key" {
-  value     = azurerm_storage_account.main.secondary_access_key
-  sensitive = true
+output "primary_file_endpoint" {
+  description = "Primary file endpoint"
+  value       = azurerm_storage_account.main.primary_file_endpoint
 }
 
-output "container_ids" {
-  value = { for k, v in azurerm_storage_container.containers : k => v.id }
+output "identity_principal_id" {
+  description = "System assigned identity principal ID"
+  value       = azurerm_storage_account.main.identity[0].principal_id
 }

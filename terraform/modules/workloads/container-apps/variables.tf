@@ -1,106 +1,80 @@
-# =============================================================================
-# Container Apps Module - Variables
-# =============================================================================
-
 variable "environment_name" {
-  type = string
+  description = "Name of the Container Apps Environment"
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the resource group"
+  type        = string
 }
 
 variable "location" {
-  type    = string
-  default = "eastus2"
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
 variable "log_analytics_workspace_id" {
-  type = string
+  description = "Log Analytics Workspace ID for observability"
+  type        = string
 }
 
-variable "infrastructure_subnet_id" {
-  type    = string
-  default = null
+variable "subnet_id" {
+  description = "Subnet ID for VNet integration"
+  type        = string
+  default     = null
 }
 
 variable "internal_load_balancer_enabled" {
-  type    = bool
-  default = false
+  description = "Use internal load balancer (no public IP)"
+  type        = bool
+  default     = false
 }
 
-variable "zone_redundancy_enabled" {
-  type    = bool
-  default = false
+variable "managed_identity_id" {
+  description = "User assigned managed identity resource ID"
+  type        = string
+  default     = null
 }
 
 variable "container_apps" {
-  type = list(object({
-    name          = string
+  description = "Map of container apps to create"
+  type = map(object({
     revision_mode = optional(string, "Single")
-    min_replicas  = optional(number, 0)
-    max_replicas  = optional(number, 10)
-    container = object({
+    containers = list(object({
       name   = string
       image  = string
       cpu    = number
       memory = string
-      env = optional(list(object({
-        name        = string
+      env = optional(map(object({
         value       = optional(string)
         secret_name = optional(string)
-      })), [])
-      liveness_probe = optional(object({
-        port             = number
-        path             = optional(string, "/health")
-        transport        = optional(string, "HTTP")
-        interval_seconds = optional(number, 10)
-      }))
-      readiness_probe = optional(object({
-        port             = number
-        path             = optional(string, "/ready")
-        transport        = optional(string, "HTTP")
-        interval_seconds = optional(number, 10)
-      }))
-    })
-    ingress = optional(object({
-      target_port                = number
-      external_enabled           = optional(bool, true)
-      allow_insecure_connections = optional(bool, false)
-      transport                  = optional(string, "auto")
+      })))
     }))
-    registry = optional(object({
-      server               = string
-      identity             = optional(string)
-      username             = optional(string)
-      password_secret_name = optional(string)
-    }))
-    secrets = optional(list(object({
-      name  = string
-      value = string
-    })), [])
-    identity = optional(object({
-      type         = string
-      identity_ids = optional(list(string))
-    }))
+    min_replicas = optional(number, 0)
+    max_replicas = optional(number, 10)
     http_scale_rule = optional(object({
       name                = string
       concurrent_requests = number
     }))
-    custom_scale_rules = optional(list(object({
-      name             = string
-      custom_rule_type = string
-      metadata         = map(string)
-      authentication = optional(object({
-        secret_name       = string
-        trigger_parameter = string
-      }))
-    })), [])
+    ingress = optional(object({
+      external_enabled = bool
+      target_port      = number
+      transport        = optional(string, "auto")
+    }))
+    secrets = optional(map(string))
+    registry = optional(object({
+      server               = string
+      username             = optional(string)
+      password_secret_name = optional(string)
+      identity             = optional(string)
+    }))
   }))
-  default = []
+  default = {}
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }

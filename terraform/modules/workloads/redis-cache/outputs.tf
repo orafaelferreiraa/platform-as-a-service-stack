@@ -1,43 +1,43 @@
-# =============================================================================
-# Redis Cache Module - Outputs
-# =============================================================================
-
 output "id" {
-  value = azurerm_redis_cache.main.id
+  description = "Redis Cache resource ID"
+  value       = azurerm_redis_cache.main.id
 }
 
 output "name" {
-  value = azurerm_redis_cache.main.name
+  description = "Redis Cache name"
+  value       = azurerm_redis_cache.main.name
 }
 
 output "hostname" {
-  value = azurerm_redis_cache.main.hostname
+  description = "Redis Cache hostname"
+  value       = azurerm_redis_cache.main.hostname
 }
 
 output "port" {
-  value = azurerm_redis_cache.main.port
-}
-
-output "ssl_port" {
-  value = azurerm_redis_cache.main.ssl_port
+  description = "Redis Cache SSL port"
+  value       = azurerm_redis_cache.main.ssl_port
 }
 
 output "primary_access_key" {
-  value     = azurerm_redis_cache.main.primary_access_key
-  sensitive = true
+  description = "Primary access key"
+  value       = azurerm_redis_cache.main.primary_access_key
+  sensitive   = true
 }
 
 output "secondary_access_key" {
-  value     = azurerm_redis_cache.main.secondary_access_key
-  sensitive = true
+  description = "Secondary access key"
+  value       = azurerm_redis_cache.main.secondary_access_key
+  sensitive   = true
 }
 
 output "primary_connection_string" {
-  value     = azurerm_redis_cache.main.primary_connection_string
-  sensitive = true
+  description = "Primary connection string"
+  value       = azurerm_redis_cache.main.primary_connection_string
+  sensitive   = true
 }
 
 output "secondary_connection_string" {
-  value     = azurerm_redis_cache.main.secondary_connection_string
-  sensitive = true
+  description = "Secondary connection string"
+  value       = azurerm_redis_cache.main.secondary_connection_string
+  sensitive   = true
 }

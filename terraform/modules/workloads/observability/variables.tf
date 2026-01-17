@@ -1,40 +1,49 @@
-# =============================================================================
-# Observability Module - Variables
-# =============================================================================
-
 variable "log_analytics_name" {
-  type = string
+  description = "Name of the Log Analytics workspace"
+  type        = string
 }
 
 variable "app_insights_name" {
-  type = string
+  description = "Name of the Application Insights resource"
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the resource group"
+  type        = string
 }
 
 variable "location" {
-  type    = string
-  default = "eastus2"
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
 variable "log_analytics_sku" {
-  type    = string
-  default = "PerGB2018"
+  description = "SKU for Log Analytics workspace"
+  type        = string
+  default     = "PerGB2018"
 }
 
 variable "retention_in_days" {
-  type    = number
-  default = 30
+  description = "Data retention in days for Log Analytics"
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.retention_in_days >= 30 && var.retention_in_days <= 730
+    error_message = "Retention must be between 30 and 730 days."
+  }
 }
 
 variable "application_type" {
-  type    = string
-  default = "web"
+  description = "Application type for Application Insights"
+  type        = string
+  default     = "web"
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }

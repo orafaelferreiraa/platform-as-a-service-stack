@@ -1,43 +1,39 @@
-# =============================================================================
-# VNet Spoke Module - Outputs
-# =============================================================================
-
 output "id" {
-  value = azurerm_virtual_network.main.id
+  description = "Virtual Network resource ID"
+  value       = azurerm_virtual_network.main.id
 }
 
 output "name" {
-  value = azurerm_virtual_network.main.name
+  description = "Virtual Network name"
+  value       = azurerm_virtual_network.main.name
 }
 
 output "address_space" {
-  value = azurerm_virtual_network.main.address_space
+  description = "Virtual Network address space"
+  value       = azurerm_virtual_network.main.address_space
 }
 
-output "default_subnet_id" {
-  value = azurerm_subnet.default.id
+output "subnet_default_id" {
+  description = "Default subnet ID"
+  value       = azurerm_subnet.default.id
 }
 
-output "default_subnet_name" {
-  value = azurerm_subnet.default.name
+output "subnet_private_endpoints_id" {
+  description = "Private endpoints subnet ID"
+  value       = azurerm_subnet.private_endpoints.id
 }
 
-output "container_apps_subnet_id" {
-  value = var.enable_container_apps_subnet ? azurerm_subnet.container_apps[0].id : null
+output "subnet_container_apps_id" {
+  description = "Container Apps subnet ID"
+  value       = try(azurerm_subnet.container_apps[0].id, null)
 }
 
-output "container_apps_subnet_name" {
-  value = var.enable_container_apps_subnet ? azurerm_subnet.container_apps[0].name : null
+output "subnet_sql_id" {
+  description = "SQL subnet ID"
+  value       = try(azurerm_subnet.sql[0].id, null)
 }
 
-output "private_endpoints_subnet_id" {
-  value = var.enable_private_endpoints_subnet ? azurerm_subnet.private_endpoints[0].id : null
-}
-
-output "nsg_id" {
-  value = var.enable_nsg ? azurerm_network_security_group.default[0].id : null
-}
-
-output "nsg_name" {
-  value = var.enable_nsg ? azurerm_network_security_group.default[0].name : null
+output "subnet_redis_id" {
+  description = "Redis subnet ID"
+  value       = try(azurerm_subnet.redis[0].id, null)
 }

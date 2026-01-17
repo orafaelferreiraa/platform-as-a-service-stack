@@ -1,116 +1,115 @@
-# =============================================================================
-# Redis Cache Module - Variables
-# =============================================================================
-
 variable "name" {
-  type = string
+  description = "Name of the Redis Cache"
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the resource group"
+  type        = string
 }
 
 variable "location" {
-  type    = string
-  default = "eastus2"
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
 variable "capacity" {
-  type    = number
-  default = 0
+  description = "Redis Cache capacity (size)"
+  type        = number
+  default     = 1
 }
 
 variable "family" {
-  type    = string
-  default = "C"
+  description = "Redis Cache family (C for Basic/Standard, P for Premium)"
+  type        = string
+  default     = "C"
+
+  validation {
+    condition     = contains(["C", "P"], var.family)
+    error_message = "Family must be 'C' (Basic/Standard) or 'P' (Premium)."
+  }
 }
 
 variable "sku_name" {
-  type    = string
-  default = "Basic"
+  description = "Redis Cache SKU name"
+  type        = string
+  default     = "Standard"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.sku_name)
+    error_message = "SKU must be 'Basic', 'Standard', or 'Premium'."
+  }
 }
 
-variable "non_ssl_port_enabled" {
-  type    = bool
-  default = false
-}
+variable "redis_family" {
+  description = "Redis Cache family (C for Basic/Standard, P for Premium)"
+  type        = string
+  default     = "C"
 
-variable "minimum_tls_version" {
-  type    = string
-  default = "1.2"
-}
-
-variable "public_network_access_enabled" {
-  type    = bool
-  default = true
-}
-
-variable "redis_version" {
-  type    = string
-  default = "6"
-}
-
-variable "aof_backup_enabled" {
-  type    = bool
-  default = false
-}
-
-variable "aof_storage_connection_string_0" {
-  type    = string
-  default = null
-}
-
-variable "aof_storage_connection_string_1" {
-  type    = string
-  default = null
-}
-
-variable "maxmemory_reserved" {
-  type    = number
-  default = null
-}
-
-variable "maxmemory_delta" {
-  type    = number
-  default = null
+  validation {
+    condition     = contains(["C", "P"], var.redis_family)
+    error_message = "Family must be 'C' (Basic/Standard) or 'P' (Premium)."
+  }
 }
 
 variable "maxmemory_policy" {
-  type    = string
-  default = "volatile-lru"
+  description = "Max memory eviction policy"
+  type        = string
+  default     = "volatile-lru"
+}
+
+variable "maxmemory_reserved" {
+  description = "Memory reserved for non-cache operations (MB)"
+  type        = number
+  default     = null
+}
+
+variable "maxmemory_delta" {
+  description = "Memory delta reserved during scaling (MB)"
+  type        = number
+  default     = null
 }
 
 variable "notify_keyspace_events" {
-  type    = string
-  default = ""
+  description = "Keyspace notifications setting"
+  type        = string
+  default     = ""
 }
 
-variable "rdb_backup_enabled" {
-  type    = bool
-  default = false
+variable "aof_backup_enabled" {
+  description = "Enable AOF backup (Premium only)"
+  type        = bool
+  default     = false
 }
 
-variable "rdb_backup_frequency" {
-  type    = number
-  default = null
+variable "aof_storage_connection_string" {
+  description = "Storage connection string for AOF backup"
+  type        = string
+  default     = null
+  sensitive   = true
 }
 
-variable "rdb_backup_max_snapshot_count" {
-  type    = number
-  default = null
+variable "replicas_per_master" {
+  description = "Number of replicas per master (Premium only)"
+  type        = number
+  default     = null
 }
 
-variable "rdb_storage_connection_string" {
-  type    = string
-  default = null
+variable "subnet_id" {
+  description = "Subnet ID for VNet integration (Premium only)"
+  type        = string
+  default     = null
 }
 
-variable "identity_principal_id" {
-  type    = string
-  default = null
+variable "managed_identity_id" {
+  description = "User assigned managed identity resource ID"
+  type        = string
+  default     = null
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }

@@ -1,34 +1,33 @@
-# =============================================================================
-# Key Vault Module - Outputs
-# NOTA: NUNCA expor valores de secrets nos outputs
-# =============================================================================
+# IMPORTANT: This module NEVER exposes secret values in outputs
+# Only metadata (IDs, names, URIs) are exposed
+# Applications must retrieve secret values via Key Vault URI at runtime
 
 output "id" {
-  value = azurerm_key_vault.main.id
+  description = "Key Vault resource ID"
+  value       = azurerm_key_vault.main.id
 }
 
 output "name" {
-  value = azurerm_key_vault.main.name
+  description = "Key Vault name"
+  value       = azurerm_key_vault.main.name
 }
 
 output "vault_uri" {
-  value = azurerm_key_vault.main.vault_uri
+  description = "Key Vault URI (use this to retrieve secrets at runtime)"
+  value       = azurerm_key_vault.main.vault_uri
 }
 
 output "tenant_id" {
-  value = azurerm_key_vault.main.tenant_id
+  description = "Tenant ID where Key Vault is created"
+  value       = azurerm_key_vault.main.tenant_id
 }
 
 output "secret_ids" {
-  description = "IDs dos secrets criados (sem valores)"
+  description = "Map of secret names to their resource IDs (NOT values)"
   value       = { for k, v in azurerm_key_vault_secret.secrets : k => v.id }
 }
 
 output "secret_uris" {
-  description = "URIs dos secrets (para referência em outros recursos)"
+  description = "Map of secret names to their versionless URIs (for reference in other resources)"
   value       = { for k, v in azurerm_key_vault_secret.secrets : k => v.versionless_id }
-}
-
-output "secret_names" {
-  value = { for k, v in azurerm_key_vault_secret.secrets : k => v.name }
 }

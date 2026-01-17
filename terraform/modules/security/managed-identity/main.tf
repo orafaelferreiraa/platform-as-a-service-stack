@@ -1,6 +1,5 @@
-# =============================================================================
-# Managed Identity Module
-# =============================================================================
+# Security Module: Managed Identity
+# Creates a User Assigned Managed Identity for platform resources
 
 resource "azurerm_user_assigned_identity" "main" {
   name                = var.name

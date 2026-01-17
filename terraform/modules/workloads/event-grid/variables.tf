@@ -1,55 +1,73 @@
-# =============================================================================
-# Event Grid Module - Variables
-# =============================================================================
-
 variable "name" {
-  type = string
+  description = "Name of the Event Grid topic"
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the resource group"
+  type        = string
 }
 
 variable "location" {
-  type    = string
-  default = "eastus2"
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
-variable "source_arm_resource_id" {
+variable "input_schema" {
+  description = "Input schema for events"
   type        = string
-  description = "The ARM resource ID of the source (e.g., Storage Account, Resource Group)"
+  default     = "EventGridSchema"
+
+  validation {
+    condition     = contains(["EventGridSchema", "CustomEventSchema", "CloudEventSchemaV1_0"], var.input_schema)
+    error_message = "Input schema must be 'EventGridSchema', 'CustomEventSchema', or 'CloudEventSchemaV1_0'."
+  }
 }
 
-variable "topic_type" {
+variable "public_network_access_enabled" {
+  description = "Enable public network access"
+  type        = bool
+  default     = true
+}
+
+variable "managed_identity_id" {
+  description = "User assigned managed identity resource ID"
   type        = string
-  description = "The type of source (e.g., Microsoft.Storage.StorageAccounts, Microsoft.Resources.ResourceGroups)"
-  default     = "Microsoft.Storage.StorageAccounts"
+  default     = null
+}
+
+variable "managed_identity_principal_id" {
+  description = "Principal ID of managed identity for RBAC"
+  type        = string
+  default     = null
 }
 
 variable "subscriptions" {
-  type = list(object({
-    name                 = string
-    endpoint_type        = string # "service_bus_queue", "service_bus_topic", "storage_queue", "webhook"
-    endpoint_id          = optional(string)
-    storage_account_id   = optional(string)
-    queue_name           = optional(string)
-    webhook_url          = optional(string)
-    included_event_types = list(string)
+  description = "Map of event subscriptions to create"
+  type = map(object({
+    endpoint_type         = string # webhook, service_bus_queue, service_bus_topic, storage_queue
+    endpoint_url          = optional(string)
+    service_bus_queue_id  = optional(string)
+    service_bus_topic_id  = optional(string)
+    storage_account_id    = optional(string)
+    storage_queue_name    = optional(string)
+    event_types           = optional(list(string))
+    event_delivery_schema = optional(string, "EventGridSchema")
+    retry_policy = optional(object({
+      max_delivery_attempts = number
+      event_time_to_live    = number
+    }))
     subject_filter = optional(object({
       subject_begins_with = optional(string)
       subject_ends_with   = optional(string)
-      case_sensitive      = optional(bool, false)
     }))
-    advanced_filters = optional(list(object({
-      type   = string # "string_contains", "string_begins_with", "string_ends_with"
-      key    = string
-      values = list(string)
-    })))
   }))
-  default = []
+  default = {}
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }

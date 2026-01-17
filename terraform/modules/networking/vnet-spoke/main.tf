@@ -1,69 +1,70 @@
-# =============================================================================
-# VNet Spoke Module
-# =============================================================================
+# Networking Module: VNet Spoke
+# Creates a Virtual Network with subnets for platform services
 
 resource "azurerm_virtual_network" "main" {
   name                = var.name
   location            = var.location
   resource_group_name = var.resource_group_name
   address_space       = var.address_space
-  dns_servers         = var.dns_servers
-  tags                = var.tags
+
+  tags = var.tags
 }
 
+# Default subnet for general workloads
 resource "azurerm_subnet" "default" {
-  name                 = "${var.subnet_prefix}-default"
+  name                 = "snet-default"
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.subnets.default]
-
-  service_endpoints = var.enable_service_endpoints ? [
-    "Microsoft.Storage",
-    "Microsoft.Sql",
-    "Microsoft.ServiceBus",
-    "Microsoft.KeyVault",
-    "Microsoft.EventHub"
-  ] : []
 }
 
-resource "azurerm_subnet" "container_apps" {
-  count = var.enable_container_apps_subnet ? 1 : 0
-
-  name                 = "${var.subnet_prefix}-container-apps"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = [var.subnets.container_apps]
-
-  delegation {
-    name = "container-apps-delegation"
-    service_delegation {
-      name    = "Microsoft.App/environments"
-      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
-    }
-  }
-}
-
+# Subnet for private endpoints
 resource "azurerm_subnet" "private_endpoints" {
-  count = var.enable_private_endpoints_subnet ? 1 : 0
-
-  name                 = "${var.subnet_prefix}-private-endpoints"
+  name                 = "snet-private-endpoints"
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.subnets.private_endpoints]
 }
 
-resource "azurerm_network_security_group" "default" {
-  count = var.enable_nsg ? 1 : 0
+# Subnet for Container Apps Environment
+resource "azurerm_subnet" "container_apps" {
+  count = var.subnets.container_apps != null ? 1 : 0
 
-  name                = var.nsg_name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  tags                = var.tags
+  name                 = "snet-container-apps"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.subnets.container_apps]
+
+  delegation {
+    name = "delegation-container-apps"
+
+    service_delegation {
+      name = "Microsoft.App/environments"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+      ]
+    }
+  }
 }
 
-resource "azurerm_subnet_network_security_group_association" "default" {
-  count = var.enable_nsg ? 1 : 0
+# Subnet for SQL Server (optional)
+resource "azurerm_subnet" "sql" {
+  count = var.subnets.sql != null ? 1 : 0
 
-  subnet_id                 = azurerm_subnet.default.id
-  network_security_group_id = azurerm_network_security_group.default[0].id
+  name                 = "snet-sql"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.subnets.sql]
+
+  service_endpoints = ["Microsoft.Sql"]
+}
+
+# Subnet for Redis Cache (optional)
+resource "azurerm_subnet" "redis" {
+  count = var.subnets.redis != null ? 1 : 0
+
+  name                 = "snet-redis"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.subnets.redis]
 }

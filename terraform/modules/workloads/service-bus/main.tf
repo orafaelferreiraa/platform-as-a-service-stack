@@ -1,65 +1,79 @@
-# =============================================================================
-# Service Bus Module
-# =============================================================================
+# Workload Module: Service Bus
+# Creates an Azure Service Bus namespace with queues and topics
 
 resource "azurerm_servicebus_namespace" "main" {
-  name                          = var.name
-  location                      = var.location
-  resource_group_name           = var.resource_group_name
-  sku                           = var.sku
-  capacity                      = var.sku == "Premium" ? var.capacity : 0
-  premium_messaging_partitions  = var.sku == "Premium" ? var.premium_messaging_partitions : 0
-  local_auth_enabled            = var.local_auth_enabled
+  name                = var.name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  sku                 = var.sku
+
+  # Premium tier specific settings
+  capacity                     = var.sku == "Premium" ? var.capacity : null
+  premium_messaging_partitions = var.sku == "Premium" ? var.premium_messaging_partitions : null
+
+  # Security settings
   public_network_access_enabled = var.public_network_access_enabled
-  minimum_tls_version           = var.minimum_tls_version
-  tags                          = var.tags
+  minimum_tls_version           = "1.2"
+
+  # Identity
+  identity {
+    type         = var.managed_identity_id != null ? "SystemAssigned, UserAssigned" : "SystemAssigned"
+    identity_ids = var.managed_identity_id != null ? [var.managed_identity_id] : []
+  }
+
+  tags = var.tags
 }
 
+# Queues
 resource "azurerm_servicebus_queue" "queues" {
-  for_each = { for q in var.queues : q.name => q }
+  for_each = var.queues
 
-  name                                    = each.value.name
-  namespace_id                            = azurerm_servicebus_namespace.main.id
-  max_size_in_megabytes                   = lookup(each.value, "max_size_in_megabytes", 1024)
-  default_message_ttl                     = lookup(each.value, "default_message_ttl", null)
-  lock_duration                           = lookup(each.value, "lock_duration", "PT1M")
-  max_delivery_count                      = lookup(each.value, "max_delivery_count", 10)
-  dead_lettering_on_message_expiration    = lookup(each.value, "dead_lettering_on_message_expiration", true)
-  partitioning_enabled                    = lookup(each.value, "partitioning_enabled", false)
-  requires_duplicate_detection            = lookup(each.value, "requires_duplicate_detection", false)
-  duplicate_detection_history_time_window = lookup(each.value, "duplicate_detection_history_time_window", null)
-  requires_session                        = lookup(each.value, "requires_session", false)
+  name         = each.key
+  namespace_id = azurerm_servicebus_namespace.main.id
+
+  max_delivery_count                   = each.value.max_delivery_count
+  lock_duration                        = each.value.lock_duration
+  max_size_in_megabytes                = each.value.max_size_in_megabytes
+  dead_lettering_on_message_expiration = each.value.dead_lettering_on_message_expiration
+  requires_duplicate_detection         = each.value.requires_duplicate_detection
+  requires_session                     = each.value.requires_session
+  default_message_ttl                  = each.value.default_message_ttl
 }
 
+# Topics
 resource "azurerm_servicebus_topic" "topics" {
-  for_each = { for t in var.topics : t.name => t }
+  for_each = var.topics
 
-  name                                    = each.value.name
-  namespace_id                            = azurerm_servicebus_namespace.main.id
-  max_size_in_megabytes                   = lookup(each.value, "max_size_in_megabytes", 1024)
-  default_message_ttl                     = lookup(each.value, "default_message_ttl", null)
-  partitioning_enabled                    = lookup(each.value, "partitioning_enabled", false)
-  requires_duplicate_detection            = lookup(each.value, "requires_duplicate_detection", false)
-  duplicate_detection_history_time_window = lookup(each.value, "duplicate_detection_history_time_window", null)
-  support_ordering                        = lookup(each.value, "support_ordering", false)
+  name         = each.key
+  namespace_id = azurerm_servicebus_namespace.main.id
+
+  max_size_in_megabytes                   = each.value.max_size_in_megabytes
+  requires_duplicate_detection            = each.value.requires_duplicate_detection
+  support_ordering                        = each.value.support_ordering
+  default_message_ttl                     = each.value.default_message_ttl
+  auto_delete_on_idle                     = each.value.auto_delete_on_idle
+  duplicate_detection_history_time_window = each.value.duplicate_detection_history_time_window
 }
 
+# Topic Subscriptions
 resource "azurerm_servicebus_subscription" "subscriptions" {
-  for_each = { for s in var.subscriptions : "${s.topic_name}-${s.name}" => s }
+  for_each = var.subscriptions
 
-  name                                 = each.value.name
-  topic_id                             = azurerm_servicebus_topic.topics[each.value.topic_name].id
-  max_delivery_count                   = lookup(each.value, "max_delivery_count", 10)
-  default_message_ttl                  = lookup(each.value, "default_message_ttl", null)
-  lock_duration                        = lookup(each.value, "lock_duration", "PT1M")
-  dead_lettering_on_message_expiration = lookup(each.value, "dead_lettering_on_message_expiration", true)
-  requires_session                     = lookup(each.value, "requires_session", false)
+  name     = each.value.name
+  topic_id = azurerm_servicebus_topic.topics[each.value.topic_name].id
+
+  max_delivery_count                   = each.value.max_delivery_count
+  lock_duration                        = each.value.lock_duration
+  dead_lettering_on_message_expiration = each.value.dead_lettering_on_message_expiration
+  requires_session                     = each.value.requires_session
+  default_message_ttl                  = each.value.default_message_ttl
 }
 
-resource "azurerm_role_assignment" "data_owner" {
-  count = var.identity_principal_id != null ? 1 : 0
+# RBAC assignment for managed identity
+resource "azurerm_role_assignment" "servicebus_data_owner" {
+  count = var.managed_identity_principal_id != null ? 1 : 0
 
   scope                = azurerm_servicebus_namespace.main.id
   role_definition_name = "Azure Service Bus Data Owner"
-  principal_id         = var.identity_principal_id
+  principal_id         = var.managed_identity_principal_id
 }

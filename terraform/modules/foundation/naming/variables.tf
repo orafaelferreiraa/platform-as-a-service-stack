@@ -1,19 +1,21 @@
-# =============================================================================
-# Naming Module - Variables
-# =============================================================================
-
 variable "name" {
-  description = "Nome base para os recursos (time ou produto)"
+  description = "Name identifier for the platform (team or product name)"
   type        = string
 
   validation {
-    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9-]{1,20}$", var.name))
-    error_message = "O nome deve começar com letra, conter apenas letras, números e hífens, com 2-21 caracteres."
+    condition     = can(regex("^[a-z0-9]+$", var.name))
+    error_message = "Name must be lowercase alphanumeric only."
   }
 }
 
 variable "location" {
-  description = "Região Azure para os recursos"
+  description = "Azure region for resources"
   type        = string
   default     = "eastus2"
+}
+
+variable "tags" {
+  description = "Additional tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }

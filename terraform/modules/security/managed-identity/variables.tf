@@ -1,21 +1,21 @@
-# =============================================================================
-# Managed Identity Module - Variables
-# =============================================================================
-
 variable "name" {
-  type = string
+  description = "Name of the managed identity"
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the resource group"
+  type        = string
 }
 
 variable "location" {
-  type    = string
-  default = "eastus2"
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to the managed identity"
+  type        = map(string)
+  default     = {}
 }

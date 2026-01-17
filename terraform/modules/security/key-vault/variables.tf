@@ -1,81 +1,84 @@
-# =============================================================================
-# Key Vault Module - Variables
-# =============================================================================
-
 variable "name" {
-  type = string
+  description = "Name of the Key Vault"
+  type        = string
+
   validation {
-    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9]{2,23}$", var.name))
-    error_message = "Nome do Key Vault deve ter 3-24 caracteres, começar com letra."
+    condition     = length(var.name) <= 24
+    error_message = "Key Vault name must be 24 characters or less."
   }
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the resource group"
+  type        = string
 }
 
 variable "location" {
-  type    = string
-  default = "eastus2"
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
 variable "sku_name" {
-  type    = string
-  default = "standard"
+  description = "SKU name for Key Vault (standard or premium)"
+  type        = string
+  default     = "standard"
+
+  validation {
+    condition     = contains(["standard", "premium"], var.sku_name)
+    error_message = "SKU name must be 'standard' or 'premium'."
+  }
 }
 
 variable "soft_delete_retention_days" {
-  type    = number
-  default = 7
+  description = "Days to retain deleted vaults (7-90)"
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.soft_delete_retention_days >= 7 && var.soft_delete_retention_days <= 90
+    error_message = "Soft delete retention must be between 7 and 90 days."
+  }
 }
 
 variable "purge_protection_enabled" {
-  type    = bool
-  default = false
+  description = "Enable purge protection"
+  type        = bool
+  default     = false
 }
 
 variable "public_network_access_enabled" {
-  type    = bool
-  default = true
+  description = "Enable public network access"
+  type        = bool
+  default     = true
 }
 
-variable "enable_network_acls" {
-  type    = bool
-  default = false
+variable "network_acls" {
+  description = "Network ACLs configuration"
+  type = object({
+    default_action             = string
+    bypass                     = string
+    ip_rules                   = optional(list(string), [])
+    virtual_network_subnet_ids = optional(list(string), [])
+  })
+  default = null
 }
 
-variable "network_default_action" {
-  type    = string
-  default = "Deny"
-}
-
-variable "allowed_ip_ranges" {
-  type    = list(string)
-  default = []
-}
-
-variable "allowed_subnet_ids" {
-  type    = list(string)
-  default = []
-}
-
-variable "secrets_user_principal_ids" {
-  type    = map(string)
-  default = {}
-}
-
-variable "secrets_officer_principal_ids" {
-  type    = map(string)
-  default = {}
+variable "managed_identity_principal_id" {
+  description = "Principal ID of managed identity to grant secrets access"
+  type        = string
+  default     = null
 }
 
 variable "secrets" {
-  description = "Map de secrets a serem criados (nome => valor)"
+  description = "Map of secrets to create in Key Vault (key = secret name, value = secret value)"
   type        = map(string)
   default     = {}
+  sensitive   = true
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to the Key Vault"
+  type        = map(string)
+  default     = {}
 }

@@ -1,15 +1,14 @@
-# =============================================================================
-# Resource Group Module - Outputs
-# =============================================================================
-
 output "id" {
-  value = azurerm_resource_group.main.id
+  description = "Resource group ID"
+  value       = azurerm_resource_group.main.id
 }
 
 output "name" {
-  value = azurerm_resource_group.main.name
+  description = "Resource group name"
+  value       = azurerm_resource_group.main.name
 }
 
 output "location" {
-  value = azurerm_resource_group.main.location
+  description = "Resource group location"
+  value       = azurerm_resource_group.main.location
 }
