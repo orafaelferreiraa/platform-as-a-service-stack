@@ -430,10 +430,10 @@ resource "azurerm_role_assignment" "current_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
-# Aguarda propagação do RBAC (até 60 segundos)
+# Aguarda propagação do RBAC (90 segundos para maior confiabilidade)
 resource "time_sleep" "wait_for_rbac" {
   depends_on      = [azurerm_role_assignment.current_admin]
-  create_duration = "60s"
+  create_duration = "90s"
 }
 
 resource "azurerm_key_vault_secret" "secrets" {
@@ -808,20 +808,74 @@ resource "azurerm_eventgrid_event_subscription" "service_bus" {
 
 ## Naming Convention
 
-Padrão simplificado: `<prefix>-<name>-<location_abbr>`
+Padrão simplificado com **sufixo aleatório** para garantir nomes únicos globalmente:
+
+```
+Formato: <prefix>-<name>-<location_abbr>[-<random_suffix>]
+```
+
+### Recursos que PRECISAM de sufixo aleatório (nomes globais únicos):
+
+| Recurso | Padrão | Exemplo |
+|---------|--------|---------|
+| Key Vault | `kv<name><loc><suffix>` | `kvtesteus2a1b2` |
+| Storage Account | `st<name><loc><suffix>` | `sttesteus2a1b2` |
+| SQL Server | `sql-<name>-<loc>-<suffix>` | `sql-test-eus2-a1b2` |
+| Redis Cache | `redis-<name>-<loc>-<suffix>` | `redis-test-eus2-a1b2` |
+| Service Bus | `sb-<name>-<loc>-<suffix>` | `sb-test-eus2-a1b2` |
+| Container Apps Env | `cae-<name>-<loc>-<suffix>` | `cae-test-eus2-a1b2` |
+
+### Recursos SEM sufixo (nomes dentro do resource group):
+
+| Recurso | Padrão | Exemplo |
+|---------|--------|---------|
+| Resource Group | `rg-<name>-<loc>` | `rg-test-eus2` |
+| VNet | `vnet-<name>-<loc>` | `vnet-test-eus2` |
+| Managed Identity | `id-<name>-<loc>` | `id-test-eus2` |
+| SQL Database | `sqldb-<name>-<loc>` | `sqldb-test-eus2` |
+| Log Analytics | `log-<name>-<loc>` | `log-test-eus2` |
+
+### Implementação no Módulo Naming:
 
 ```hcl
+# Random suffix para nomes únicos globalmente
+resource "random_string" "suffix" {
+  length  = 4
+  lower   = true
+  upper   = false
+  numeric = true
+  special = false
+}
+
 locals {
-  name          = lower(var.name)
-  location_abbr = lookup(local.location_abbreviations, var.location, substr(var.location, 0, 3))
-  
-  base_name_pattern = "${local.name}-${local.location_abbr}"
-  
-  resource_group    = "rg-${local.base_name_pattern}"
-  key_vault         = "kv-${local.name}${local.location_abbr}"  # Sem hífens
-  storage_account   = "st${local.name}${local.location_abbr}"   # Sem hífens
+  name   = lower(var.name)
+  suffix = random_string.suffix.result
+
+  # Padrões de nomenclatura
+  base_name_pattern        = "${local.name}-${local.location_abbr}"
+  base_name_pattern_unique = "${local.name}-${local.location_abbr}-${local.suffix}"
+  base_name_no_separator   = "${local.name}${local.location_abbr}"
+  base_name_unique_compact = "${local.name}${local.location_abbr}${local.suffix}"
+}
+
+# Exemplos de outputs
+output "key_vault" {
+  value = "kv${local.base_name_unique_compact}"  # kvtesteus2a1b2
+}
+
+output "sql_server" {
+  value = "sql-${local.base_name_pattern_unique}"  # sql-test-eus2-a1b2
+}
+
+output "resource_group" {
+  value = "rg-${local.base_name_pattern}"  # rg-test-eus2 (sem sufixo)
 }
 ```
+
+**Por que usar sufixo aleatório?**
+- Recursos como Key Vault, Storage Account e SQL Server têm nomes **globalmente únicos**
+- Evita conflitos quando o recurso já existe (de deploy anterior ou soft-deleted)
+- Sufixo de 4 caracteres (letras minúsculas + números) = 1.679.616 combinações possíveis
 
 ---
 
@@ -836,24 +890,30 @@ Quando um recurso existe no Azure mas não está no Terraform state (ex: deploy 
 # "a resource with the ID ... already exists - to be managed via Terraform 
 # this resource needs to be imported into the State"
 
-# Importar Container Apps Environment
+# Importar Container Apps Environment (com sufixo aleatório)
 terraform import 'module.container_apps[0].azurerm_container_app_environment.main' \
-  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.App/managedEnvironments/cae-<NAME>-eus2'
+  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.App/managedEnvironments/cae-<NAME>-eus2-<SUFFIX>'
 
-# Importar Key Vault
+# Importar Key Vault (com sufixo aleatório)
 terraform import 'module.key_vault[0].azurerm_key_vault.main' \
-  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.KeyVault/vaults/kv-<NAME>eus2'
+  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.KeyVault/vaults/kv<NAME>eus2<SUFFIX>'
 
-# Importar Storage Account
+# Importar Storage Account (com sufixo aleatório)
 terraform import 'module.storage_account[0].azurerm_storage_account.main' \
-  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.Storage/storageAccounts/st<NAME>eus2'
+  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.Storage/storageAccounts/st<NAME>eus2<SUFFIX>'
 
-# Importar SQL Server
+# Importar SQL Server (com sufixo aleatório)
 terraform import 'module.sql[0].azurerm_mssql_server.main' \
-  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.Sql/servers/sql-<NAME>-eus2'
+  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.Sql/servers/sql-<NAME>-eus2-<SUFFIX>'
+
+# Importar também o random_string do naming (para manter consistência)
+terraform import 'module.naming.random_string.suffix' '<SUFFIX>'
 ```
 
-**Dica:** Após importar, execute `terraform plan` para verificar se há drift entre o estado importado e a configuração.
+**Dicas:**
+- Após importar, execute `terraform plan` para verificar se há drift entre o estado importado e a configuração.
+- O `<SUFFIX>` é o código aleatório de 4 caracteres gerado pelo módulo naming.
+- Ao importar, você também precisa importar o `random_string.suffix` para manter a consistência.
 
 ---
 

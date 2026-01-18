@@ -32,20 +32,20 @@ output "nsg" {
 
 # Security
 output "key_vault" {
-  description = "Key Vault name (no hyphens)"
-  value       = "kv-${local.base_name_no_separator}"
+  description = "Key Vault name (globally unique with suffix)"
+  value       = "kv${local.base_name_unique_compact}"
 }
 
 # Workloads - Storage
 output "storage_account" {
-  description = "Storage account name (no hyphens)"
-  value       = "st${local.base_name_no_separator}"
+  description = "Storage account name (globally unique with suffix)"
+  value       = "st${local.base_name_unique_compact}"
 }
 
 # Workloads - Messaging
 output "service_bus" {
-  description = "Service Bus namespace name"
-  value       = "sb-${local.base_name_pattern}"
+  description = "Service Bus namespace name (globally unique with suffix)"
+  value       = "sb-${local.base_name_pattern_unique}"
 }
 
 output "service_bus_queue" {
@@ -75,8 +75,8 @@ output "event_grid_subscription" {
 
 # Workloads - Data
 output "sql_server" {
-  description = "SQL Server name"
-  value       = "sql-${local.base_name_pattern}"
+  description = "SQL Server name (globally unique with suffix)"
+  value       = "sql-${local.base_name_pattern_unique}"
 }
 
 output "sql_database" {
@@ -85,8 +85,8 @@ output "sql_database" {
 }
 
 output "redis_cache" {
-  description = "Redis Cache name"
-  value       = "redis-${local.base_name_pattern}"
+  description = "Redis Cache name (globally unique with suffix)"
+  value       = "redis-${local.base_name_pattern_unique}"
 }
 
 # Workloads - Observability
@@ -102,6 +102,12 @@ output "application_insights" {
 
 # Workloads - Containers
 output "container_apps_environment" {
-  description = "Container Apps Environment name"
-  value       = "cae-${local.base_name_pattern}"
+  description = "Container Apps Environment name (globally unique with suffix)"
+  value       = "cae-${local.base_name_pattern_unique}"
+}
+
+# Random suffix for reference
+output "random_suffix" {
+  description = "Random suffix used for globally unique names"
+  value       = local.suffix
 }
