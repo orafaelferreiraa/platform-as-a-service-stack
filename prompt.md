@@ -405,6 +405,45 @@ resource "azurerm_container_app_environment" "main" {
 
 **Nota:** A subnet para Container Apps deve ter delegação para `Microsoft.App/environments` e tamanho mínimo de `/27`.
 
+### Key Vault - RBAC Propagation Delay
+
+**⚠️ IMPORTANTE:** Azure RBAC leva até 5 minutos para propagar. Ao criar secrets no Key Vault logo após atribuir RBAC, pode ocorrer erro 403 Forbidden.
+
+```hcl
+# ❌ ERRADO - Secret criado antes do RBAC propagar
+# Erro: "does not have secrets get permission on key vault"
+resource "azurerm_role_assignment" "current_admin" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Administrator"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+resource "azurerm_key_vault_secret" "secrets" {
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.current_admin]  # Não é suficiente!
+}
+
+# ✅ CORRETO - Usar time_sleep para aguardar propagação do RBAC
+resource "azurerm_role_assignment" "current_admin" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Administrator"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# Aguarda propagação do RBAC (até 60 segundos)
+resource "time_sleep" "wait_for_rbac" {
+  depends_on      = [azurerm_role_assignment.current_admin]
+  create_duration = "60s"
+}
+
+resource "azurerm_key_vault_secret" "secrets" {
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [time_sleep.wait_for_rbac]  # Agora funciona!
+}
+```
+
+**Nota:** Requer provider `hashicorp/time` no `required_providers`.
+
 ### Key Vault - NUNCA Expor Dados Sensíveis
 
 **REGRA ABSOLUTA:** O módulo Key Vault NÃO deve retornar valores de secrets nos outputs.
@@ -783,6 +822,38 @@ locals {
   storage_account   = "st${local.name}${local.location_abbr}"   # Sem hífens
 }
 ```
+
+---
+
+## Recuperação de Estado - Terraform Import
+
+### Recursos que já existem no Azure
+
+Quando um recurso existe no Azure mas não está no Terraform state (ex: deploy falhou no meio), é necessário importar:
+
+```bash
+# Erro típico:
+# "a resource with the ID ... already exists - to be managed via Terraform 
+# this resource needs to be imported into the State"
+
+# Importar Container Apps Environment
+terraform import 'module.container_apps[0].azurerm_container_app_environment.main' \
+  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.App/managedEnvironments/cae-<NAME>-eus2'
+
+# Importar Key Vault
+terraform import 'module.key_vault[0].azurerm_key_vault.main' \
+  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.KeyVault/vaults/kv-<NAME>eus2'
+
+# Importar Storage Account
+terraform import 'module.storage_account[0].azurerm_storage_account.main' \
+  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.Storage/storageAccounts/st<NAME>eus2'
+
+# Importar SQL Server
+terraform import 'module.sql[0].azurerm_mssql_server.main' \
+  '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.Sql/servers/sql-<NAME>-eus2'
+```
+
+**Dica:** Após importar, execute `terraform plan` para verificar se há drift entre o estado importado e a configuração.
 
 ---
 

@@ -19,6 +19,12 @@ resource "azurerm_role_assignment" "current_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
+# Wait for RBAC propagation (Azure RBAC can take up to 5 minutes to propagate)
+resource "time_sleep" "wait_for_rbac" {
+  depends_on      = [azurerm_role_assignment.current_admin]
+  create_duration = "60s"
+}
+
 # RBAC: Grant managed identity Key Vault Secrets User role
 resource "azurerm_role_assignment" "managed_identity_secrets_user" {
   scope                = azurerm_key_vault.main.id
@@ -33,7 +39,7 @@ resource "azurerm_key_vault_secret" "secrets" {
   value        = each.value
   key_vault_id = azurerm_key_vault.main.id
 
-  depends_on = [azurerm_role_assignment.current_admin]
+  depends_on = [time_sleep.wait_for_rbac]
 }
 
 # Diagnostic settings
