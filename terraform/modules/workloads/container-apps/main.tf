@@ -6,5 +6,11 @@ resource "azurerm_container_app_environment" "main" {
   infrastructure_subnet_id       = var.infrastructure_subnet_id
   internal_load_balancer_enabled = var.internal_load_balancer_enabled
 
+  # Required for VNet integration with delegated subnet
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
+
   tags = var.tags
 }

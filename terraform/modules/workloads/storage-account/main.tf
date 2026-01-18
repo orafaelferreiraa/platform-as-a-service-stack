@@ -40,16 +40,23 @@ resource "azurerm_role_assignment" "managed_identity_blob_contributor" {
 }
 
 # Create default containers
+# Note: When shared_access_key_enabled = false, containers must be created
+# after the storage account is fully provisioned and RBAC is configured.
+# Using depends_on to ensure proper ordering.
 resource "azurerm_storage_container" "data" {
-  name                   = "data"
-  storage_account_id     = azurerm_storage_account.main.id
+  name                  = "data"
+  storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
+
+  depends_on = [azurerm_role_assignment.managed_identity_blob_contributor]
 }
 
 resource "azurerm_storage_container" "logs" {
-  name                   = "logs"
-  storage_account_id     = azurerm_storage_account.main.id
+  name                  = "logs"
+  storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
+
+  depends_on = [azurerm_role_assignment.managed_identity_blob_contributor]
 }
 
 # Diagnostic settings

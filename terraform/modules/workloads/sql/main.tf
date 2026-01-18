@@ -58,25 +58,9 @@ resource "azurerm_mssql_database" "main" {
   tags = var.tags
 }
 
-# Diagnostic settings for SQL Server
-resource "azurerm_monitor_diagnostic_setting" "server" {
-  count                      = var.enable_observability ? 1 : 0
-  name                       = "diag-${var.server_name}"
-  target_resource_id         = azurerm_mssql_server.main.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category = "SQLSecurityAuditEvents"
-  }
-
-  enabled_log {
-    category = "DevOpsOperationsAudit"
-  }
-
-  enabled_metric {
-    category = "AllMetrics"
-  }
-}
+# Note: SQL Server-level diagnostic settings are not supported.
+# SQLSecurityAuditEvents and DevOpsOperationsAudit require SQL Database auditing to be enabled.
+# Metrics and logs are captured at the database level instead.
 
 # Diagnostic settings for SQL Database
 resource "azurerm_monitor_diagnostic_setting" "database" {

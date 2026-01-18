@@ -145,8 +145,10 @@ variable "enable_container_apps" {
 │                                                                              │
 │  📦 Container Apps                                                           │
 │      └── REQUER: Observability (Log Analytics workspace_id)                  │
+│      └── REQUER: workload_profile block quando usando VNet delegada          │
 │      └── Usa: VNet (infrastructure_subnet_id) [opcional]                     │
 │      ⚠️  NÃO será criado se enable_observability = false                     │
+│      ⚠️  Subnet delegada REQUER workload_profile configurado                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -274,6 +276,39 @@ Região padrão: eastus2 (hardcoded, não passar na pipeline)
 - `azurerm_servicebus_namespace_network_rule_set` - Não existe
 - `redis_persistence` block no `azurerm_redis_cache` - Não suportado
 
+### SQL Server Diagnostic Settings - Categorias NÃO SUPORTADAS:
+
+**⚠️ IMPORTANTE:** Diagnostic Settings no nível do SQL Server NÃO suportam as categorias:
+- `SQLSecurityAuditEvents` - Requer SQL Database Auditing habilitado
+- `DevOpsOperationsAudit` - Requer SQL Database Auditing habilitado
+
+```hcl
+# ❌ ERRADO - Categorias não suportadas no SQL Server
+resource "azurerm_monitor_diagnostic_setting" "server" {
+  target_resource_id = azurerm_mssql_server.main.id
+  
+  enabled_log {
+    category = "SQLSecurityAuditEvents"  # NÃO SUPORTADO
+  }
+  enabled_log {
+    category = "DevOpsOperationsAudit"   # NÃO SUPORTADO
+  }
+}
+
+# ✅ CORRETO - Usar apenas no SQL Database com categorias suportadas
+resource "azurerm_monitor_diagnostic_setting" "database" {
+  target_resource_id = azurerm_mssql_database.main.id
+  
+  enabled_log {
+    category = "SQLInsights"
+  }
+  enabled_log {
+    category = "QueryStoreRuntimeStatistics"
+  }
+  # ... outras categorias suportadas no database
+}
+```
+
 ### Event Grid - Atributos Diretos (NÃO usar blocos dinâmicos):
 
 | Atributo | Correção |
@@ -301,8 +336,74 @@ service_bus_topic_endpoint_id = var.service_bus_topic_id
 provider "azurerm" {
   features {}  # OBRIGATÓRIO - Bloco vazio mas necessário
   subscription_id = var.subscription_id
+
+  # OBRIGATÓRIO quando Storage Account usa shared_access_key_enabled = false
+  storage_use_azuread = true
 }
 ```
+
+### Storage Account - Autenticação Azure AD
+
+**⚠️ IMPORTANTE:** Quando `shared_access_key_enabled = false` na Storage Account, o Terraform não consegue usar autenticação por chave para operações no data plane (criar containers, blobs, etc.).
+
+```hcl
+# ❌ ERRADO - Causa erro "Key based authentication is not permitted"
+resource "azurerm_storage_account" "main" {
+  shared_access_key_enabled = false  # Desabilita chaves
+}
+
+resource "azurerm_storage_container" "data" {
+  storage_account_id = azurerm_storage_account.main.id  # FALHA!
+}
+
+# ✅ CORRETO - Usar Azure AD no provider + depends_on para RBAC
+provider "azurerm" {
+  features {}
+  subscription_id     = var.subscription_id
+  storage_use_azuread = true  # Usa Azure AD para data plane
+}
+
+resource "azurerm_storage_container" "data" {
+  storage_account_id = azurerm_storage_account.main.id
+
+  # Aguarda RBAC assignment antes de criar container
+  depends_on = [azurerm_role_assignment.managed_identity_blob_contributor]
+}
+```
+
+### Container Apps - Workload Profile OBRIGATÓRIO com VNet Delegada
+
+**⚠️ IMPORTANTE:** Quando usando subnet delegada para `Microsoft.App/environments`, o Container Apps Environment DEVE ter um `workload_profile` block configurado.
+
+```hcl
+# ❌ ERRADO - Subnet delegada sem workload_profile
+# Erro: "ManagedEnvironmentSubnetIsDelegated"
+resource "azurerm_container_app_environment" "main" {
+  name                       = var.name
+  infrastructure_subnet_id   = var.infrastructure_subnet_id  # Subnet delegada
+  # Sem workload_profile = FALHA!
+}
+
+# ✅ CORRETO - Incluir workload_profile para usar subnet delegada
+resource "azurerm_container_app_environment" "main" {
+  name                           = var.name
+  location                       = var.location
+  resource_group_name            = var.resource_group_name
+  log_analytics_workspace_id     = var.log_analytics_workspace_id
+  infrastructure_subnet_id       = var.infrastructure_subnet_id
+  internal_load_balancer_enabled = var.internal_load_balancer_enabled
+
+  # OBRIGATÓRIO para VNet integration com subnet delegada
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
+
+  tags = var.tags
+}
+```
+
+**Nota:** A subnet para Container Apps deve ter delegação para `Microsoft.App/environments` e tamanho mínimo de `/27`.
 
 ### Key Vault - NUNCA Expor Dados Sensíveis
 
