@@ -38,7 +38,7 @@ resource "azurerm_key_vault_secret" "secrets" {
 
 # Diagnostic settings
 resource "azurerm_monitor_diagnostic_setting" "main" {
-  count                      = var.enable_observability && var.log_analytics_workspace_id != null ? 1 : 0
+  count                      = var.enable_observability ? 1 : 0
   name                       = "diag-${var.name}"
   target_resource_id         = azurerm_key_vault.main.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
