@@ -1,51 +1,25 @@
-output "id" {
-  description = "Event Grid topic resource ID"
-  value       = azurerm_eventgrid_topic.main.id
+output "domain_id" {
+  description = "ID of the Event Grid domain"
+  value       = azurerm_eventgrid_domain.main.id
 }
 
-output "name" {
-  description = "Event Grid topic name"
-  value       = azurerm_eventgrid_topic.main.name
+output "domain_name" {
+  description = "Name of the Event Grid domain"
+  value       = azurerm_eventgrid_domain.main.name
 }
 
-output "endpoint" {
-  description = "Event Grid topic endpoint"
-  value       = azurerm_eventgrid_topic.main.endpoint
+output "domain_endpoint" {
+  description = "Endpoint of the Event Grid domain"
+  value       = azurerm_eventgrid_domain.main.endpoint
 }
 
-output "primary_access_key" {
-  description = "Primary access key for the topic"
-  value       = azurerm_eventgrid_topic.main.primary_access_key
+output "domain_primary_access_key" {
+  description = "Primary access key for the Event Grid domain"
+  value       = azurerm_eventgrid_domain.main.primary_access_key
   sensitive   = true
 }
 
-output "secondary_access_key" {
-  description = "Secondary access key for the topic"
-  value       = azurerm_eventgrid_topic.main.secondary_access_key
-  sensitive   = true
-}
-
-output "identity_principal_id" {
-  description = "System assigned identity principal ID"
-  value       = azurerm_eventgrid_topic.main.identity[0].principal_id
-}
-
-output "webhook_subscription_ids" {
-  description = "Map of webhook subscription names to their resource IDs"
-  value       = { for k, v in azurerm_eventgrid_event_subscription.webhook : k => v.id }
-}
-
-output "service_bus_queue_subscription_ids" {
-  description = "Map of Service Bus queue subscription names to their resource IDs"
-  value       = { for k, v in azurerm_eventgrid_event_subscription.service_bus_queue : k => v.id }
-}
-
-output "service_bus_topic_subscription_ids" {
-  description = "Map of Service Bus topic subscription names to their resource IDs"
-  value       = { for k, v in azurerm_eventgrid_event_subscription.service_bus_topic : k => v.id }
-}
-
-output "storage_queue_subscription_ids" {
-  description = "Map of storage queue subscription names to their resource IDs"
-  value       = { for k, v in azurerm_eventgrid_event_subscription.storage_queue : k => v.id }
+output "topic_id" {
+  description = "ID of the Event Grid domain topic"
+  value       = azurerm_eventgrid_domain_topic.events.id
 }

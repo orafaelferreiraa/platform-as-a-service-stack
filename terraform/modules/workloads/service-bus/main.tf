@@ -1,79 +1,70 @@
-# Workload Module: Service Bus
-# Creates an Azure Service Bus namespace with queues and topics
-
 resource "azurerm_servicebus_namespace" "main" {
   name                = var.name
   location            = var.location
   resource_group_name = var.resource_group_name
   sku                 = var.sku
+  tags                = var.tags
+}
 
-  # Premium tier specific settings
-  capacity                     = var.sku == "Premium" ? var.capacity : null
-  premium_messaging_partitions = var.sku == "Premium" ? var.premium_messaging_partitions : null
+# Create a default queue
+resource "azurerm_servicebus_queue" "events" {
+  name         = "sbq-events"
+  namespace_id = azurerm_servicebus_namespace.main.id
 
-  # Security settings
-  public_network_access_enabled = var.public_network_access_enabled
-  minimum_tls_version           = "1.2"
+  dead_lettering_on_message_expiration = true
+  max_delivery_count                   = 10
+  default_message_ttl                  = "P14D" # 14 days
+}
 
-  # Identity
-  identity {
-    type         = var.managed_identity_id != null ? "SystemAssigned, UserAssigned" : "SystemAssigned"
-    identity_ids = var.managed_identity_id != null ? [var.managed_identity_id] : []
+# Create a default topic
+resource "azurerm_servicebus_topic" "events" {
+  name         = "sbt-events"
+  namespace_id = azurerm_servicebus_namespace.main.id
+
+  default_message_ttl = "P14D" # 14 days
+}
+
+# Create a subscription for the topic
+resource "azurerm_servicebus_subscription" "events" {
+  name               = "sbts-events"
+  topic_id           = azurerm_servicebus_topic.events.id
+  max_delivery_count = 10
+}
+
+# RBAC: Grant managed identity Service Bus Data Sender role
+resource "azurerm_role_assignment" "managed_identity_sender" {
+  scope                = azurerm_servicebus_namespace.main.id
+  role_definition_name = "Azure Service Bus Data Sender"
+  principal_id         = var.managed_identity_id
+}
+
+# RBAC: Grant managed identity Service Bus Data Receiver role
+resource "azurerm_role_assignment" "managed_identity_receiver" {
+  scope                = azurerm_servicebus_namespace.main.id
+  role_definition_name = "Azure Service Bus Data Receiver"
+  principal_id         = var.managed_identity_id
+}
+
+# Diagnostic settings
+resource "azurerm_monitor_diagnostic_setting" "main" {
+  count                      = var.enable_observability && var.log_analytics_workspace_id != null ? 1 : 0
+  name                       = "diag-${var.name}"
+  target_resource_id         = azurerm_servicebus_namespace.main.id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log {
+    category = "OperationalLogs"
   }
 
-  tags = var.tags
-}
+  enabled_log {
+    category = "VNetAndIPFilteringLogs"
+  }
 
-# Queues
-resource "azurerm_servicebus_queue" "queues" {
-  for_each = var.queues
+  enabled_log {
+    category = "RuntimeAuditLogs"
+  }
 
-  name         = each.key
-  namespace_id = azurerm_servicebus_namespace.main.id
-
-  max_delivery_count                   = each.value.max_delivery_count
-  lock_duration                        = each.value.lock_duration
-  max_size_in_megabytes                = each.value.max_size_in_megabytes
-  dead_lettering_on_message_expiration = each.value.dead_lettering_on_message_expiration
-  requires_duplicate_detection         = each.value.requires_duplicate_detection
-  requires_session                     = each.value.requires_session
-  default_message_ttl                  = each.value.default_message_ttl
-}
-
-# Topics
-resource "azurerm_servicebus_topic" "topics" {
-  for_each = var.topics
-
-  name         = each.key
-  namespace_id = azurerm_servicebus_namespace.main.id
-
-  max_size_in_megabytes                   = each.value.max_size_in_megabytes
-  requires_duplicate_detection            = each.value.requires_duplicate_detection
-  support_ordering                        = each.value.support_ordering
-  default_message_ttl                     = each.value.default_message_ttl
-  auto_delete_on_idle                     = each.value.auto_delete_on_idle
-  duplicate_detection_history_time_window = each.value.duplicate_detection_history_time_window
-}
-
-# Topic Subscriptions
-resource "azurerm_servicebus_subscription" "subscriptions" {
-  for_each = var.subscriptions
-
-  name     = each.value.name
-  topic_id = azurerm_servicebus_topic.topics[each.value.topic_name].id
-
-  max_delivery_count                   = each.value.max_delivery_count
-  lock_duration                        = each.value.lock_duration
-  dead_lettering_on_message_expiration = each.value.dead_lettering_on_message_expiration
-  requires_session                     = each.value.requires_session
-  default_message_ttl                  = each.value.default_message_ttl
-}
-
-# RBAC assignment for managed identity
-resource "azurerm_role_assignment" "servicebus_data_owner" {
-  count = var.managed_identity_principal_id != null ? 1 : 0
-
-  scope                = azurerm_servicebus_namespace.main.id
-  role_definition_name = "Azure Service Bus Data Owner"
-  principal_id         = var.managed_identity_principal_id
+  enabled_metric {
+    category = "AllMetrics"
+  }
 }

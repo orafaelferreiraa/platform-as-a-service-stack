@@ -1,57 +1,26 @@
-# Foundation Module: Naming Convention
-# Generates standardized resource names following Azure naming conventions
-
 locals {
-  name          = lower(var.name)
-  location_abbr = lookup(local.location_abbreviations, var.location, substr(var.location, 0, 3))
+  name = lower(var.name)
 
+  # Location abbreviations
   location_abbreviations = {
-    "eastus"             = "eus"
-    "eastus2"            = "eus2"
-    "westus"             = "wus"
-    "westus2"            = "wus2"
-    "westus3"            = "wus3"
-    "centralus"          = "cus"
-    "northcentralus"     = "ncus"
-    "southcentralus"     = "scus"
-    "westcentralus"      = "wcus"
-    "canadacentral"      = "cac"
-    "canadaeast"         = "cae"
-    "brazilsouth"        = "brs"
-    "northeurope"        = "neu"
-    "westeurope"         = "weu"
-    "uksouth"            = "uks"
-    "ukwest"             = "ukw"
-    "francecentral"      = "frc"
-    "francesouth"        = "frs"
-    "germanywestcentral" = "gwc"
-    "switzerlandnorth"   = "szn"
-    "norwayeast"         = "noe"
-    "swedencentral"      = "sec"
-    "australiaeast"      = "aue"
-    "australiasoutheast" = "ause"
-    "southeastasia"      = "sea"
-    "eastasia"           = "ea"
-    "japaneast"          = "jpe"
-    "japanwest"          = "jpw"
-    "koreacentral"       = "krc"
-    "koreasouth"         = "krs"
-    "centralindia"       = "cin"
-    "southindia"         = "sin"
-    "westindia"          = "win"
-    "uaenorth"           = "uan"
-    "uaecentral"         = "uac"
-    "southafricanorth"   = "san"
+    "eastus"         = "eus"
+    "eastus2"        = "eus2"
+    "westus"         = "wus"
+    "westus2"        = "wus2"
+    "centralus"      = "cus"
+    "northcentralus" = "ncus"
+    "southcentralus" = "scus"
+    "westcentralus"  = "wcus"
+    "westeurope"     = "weu"
+    "northeurope"    = "neu"
+    "brazilsouth"    = "brs"
+    "uksouth"        = "uks"
+    "ukwest"         = "ukw"
   }
 
-  # Base name pattern for resources
-  base_name_pattern = "${local.name}-${local.location_abbr}"
+  location_abbr = lookup(local.location_abbreviations, var.location, substr(var.location, 0, 3))
 
-  # Standard tags
-  default_tags = merge(var.tags, {
-    ManagedBy = "Terraform"
-    Platform  = "PaaS"
-    Name      = var.name
-    Location  = var.location
-  })
+  # Base naming pattern
+  base_name_pattern      = "${local.name}-${local.location_abbr}"
+  base_name_no_separator = "${local.name}${local.location_abbr}"
 }

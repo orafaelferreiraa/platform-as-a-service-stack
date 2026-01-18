@@ -1,22 +1,17 @@
-# Workload Module: Observability
-# Creates Log Analytics Workspace and Application Insights
-
 resource "azurerm_log_analytics_workspace" "main" {
-  name                = var.log_analytics_name
+  name                = var.naming.log_analytics_workspace
   location            = var.location
   resource_group_name = var.resource_group_name
-  sku                 = var.log_analytics_sku
-  retention_in_days   = var.retention_in_days
-
-  tags = var.tags
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+  tags                = var.tags
 }
 
 resource "azurerm_application_insights" "main" {
-  name                = var.app_insights_name
+  name                = var.naming.application_insights
   location            = var.location
   resource_group_name = var.resource_group_name
   workspace_id        = azurerm_log_analytics_workspace.main.id
-  application_type    = var.application_type
-
-  tags = var.tags
+  application_type    = "web"
+  tags                = var.tags
 }

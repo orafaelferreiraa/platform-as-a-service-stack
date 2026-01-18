@@ -4,9 +4,8 @@ variable "name" {
 }
 
 variable "location" {
-  description = "Azure region for the resource group"
+  description = "Azure region"
   type        = string
-  default     = "eastus2"
 }
 
 variable "tags" {

@@ -1,4 +1,4 @@
-name: 'Platform as a Service - Deploy'
+name: Deploy Platform Infrastructure
 
 on:
   workflow_dispatch:
@@ -7,19 +7,70 @@ on:
         description: 'Name (team or product - lowercase alphanumeric)'
         required: true
         type: string
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+      
+      # Feature Flags - Control which resources to deploy
+      enable_vnet:
+        description: 'Enable Virtual Network'
+        required: false
+        type: boolean
+        default: true
+      enable_observability:
+        description: 'Enable Observability (Log Analytics + App Insights)'
+        required: false
+        type: boolean
+        default: true
+      enable_key_vault:
+        description: 'Enable Key Vault'
+        required: false
+        type: boolean
+        default: true
+      enable_storage:
+        description: 'Enable Storage Account'
+        required: false
+        type: boolean
+        default: true
+      enable_service_bus:
+        description: 'Enable Service Bus'
+        required: false
+        type: boolean
+        default: true
+      enable_event_grid:
+        description: 'Enable Event Grid'
+        required: false
+        type: boolean
+        default: true
+      enable_sql:
+        description: 'Enable SQL Server & Database'
+        required: false
+        type: boolean
+        default: true
+      enable_redis:
+        description: 'Enable Redis Cache'
+        required: false
+        type: boolean
+        default: true
+      enable_container_apps:
+        description: 'Enable Container Apps (requires Observability)'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
-
-concurrency:
-  group: paas-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  id-token: write
 
 jobs:
   terraform:
-    name: 'Terraform Deploy'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -27,28 +78,66 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_name: ${{ inputs.name }}
+      # Feature flags as environment variables
+      TF_VAR_enable_vnet: ${{ inputs.enable_vnet }}
+      TF_VAR_enable_observability: ${{ inputs.enable_observability }}
+      TF_VAR_enable_key_vault: ${{ inputs.enable_key_vault }}
+      TF_VAR_enable_storage: ${{ inputs.enable_storage }}
+      TF_VAR_enable_service_bus: ${{ inputs.enable_service_bus }}
+      TF_VAR_enable_event_grid: ${{ inputs.enable_event_grid }}
+      TF_VAR_enable_sql: ${{ inputs.enable_sql }}
+      TF_VAR_enable_redis: ${{ inputs.enable_redis }}
+      TF_VAR_enable_container_apps: ${{ inputs.enable_container_apps }}
+    
     defaults:
       run:
         shell: bash
         working-directory: terraform
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate input
+      - name: Display Configuration
         run: |
-          NAME="${{ env.TF_VAR_name }}"
-          if [[ ! "$NAME" =~ ^[a-z0-9]+$ ]]; then
-            echo "Error: Name must be lowercase alphanumeric only. Got: $NAME"
-            exit 1
+          echo "## Platform Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Platform Name:** \`${{ inputs.name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** \`${{ inputs.action }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Resources to Deploy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Enabled |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource Group | ✅ Always |" >> $GITHUB_STEP_SUMMARY
+          echo "| Managed Identity | ✅ Always |" >> $GITHUB_STEP_SUMMARY
+          echo "| Virtual Network | ${{ inputs.enable_vnet == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Observability | ${{ inputs.enable_observability == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Key Vault | ${{ inputs.enable_key_vault == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Storage Account | ${{ inputs.enable_storage == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Service Bus | ${{ inputs.enable_service_bus == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Event Grid | ${{ inputs.enable_event_grid == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SQL Server & Database | ${{ inputs.enable_sql == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Redis Cache | ${{ inputs.enable_redis == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Apps | ${{ inputs.enable_container_apps == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Validation warnings
+          if [ "${{ inputs.enable_container_apps }}" == "true" ] && [ "${{ inputs.enable_observability }}" != "true" ]; then
+            echo "### ⚠️ Validation Warning" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Container Apps requires Observability to be enabled. The deployment will fail." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "Platform name: $NAME"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.5.0
+          terraform_version: "~1.9.0"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
 
       - name: Terraform Init
         run: |
@@ -63,24 +152,21 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        id: plan
+        if: inputs.action == 'plan' || inputs.action == 'apply'
         run: terraform plan -input=false -out=tfplan
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false tfplan
+        if: inputs.action == 'apply'
+        run: terraform apply -input=false -auto-approve tfplan
 
-      - name: Job Summary
-        if: always()
-        run: |
-          {
-            echo "## Platform as a Service - Deploy Summary"
-            echo ""
-            echo "| Item | Value |"
-            echo "|------|-------|"
-            echo "| Platform Name | \`${{ env.TF_VAR_name }}\` |"
-            echo "| Branch | \`${{ github.ref_name }}\` |"
-            echo "| Actor | \`${{ github.actor }}\` |"
-            echo "| Region | \`eastus2\` |"
-            echo "| Backend | \`storagepaas/tfstate/${{ env.TF_VAR_name }}.terraform.tfstate\` |"
-            echo "| Status | ✅ Applied |"
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy -input=false -auto-approve
+
+      - name: Upload Plan Artifact
+        if: inputs.action == 'plan'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ inputs.name }}
+          path: terraform/tfplan
+          retention-days: 7

@@ -1,39 +1,39 @@
 output "id" {
-  description = "Virtual Network resource ID"
+  description = "ID of the virtual network"
   value       = azurerm_virtual_network.main.id
 }
 
 output "name" {
-  description = "Virtual Network name"
+  description = "Name of the virtual network"
   value       = azurerm_virtual_network.main.name
 }
 
 output "address_space" {
-  description = "Virtual Network address space"
+  description = "Address space of the virtual network"
   value       = azurerm_virtual_network.main.address_space
 }
 
-output "subnet_default_id" {
-  description = "Default subnet ID"
+output "default_subnet_id" {
+  description = "ID of the default subnet"
   value       = azurerm_subnet.default.id
 }
 
-output "subnet_private_endpoints_id" {
-  description = "Private endpoints subnet ID"
-  value       = azurerm_subnet.private_endpoints.id
+output "default_subnet_name" {
+  description = "Name of the default subnet"
+  value       = azurerm_subnet.default.name
 }
 
-output "subnet_container_apps_id" {
-  description = "Container Apps subnet ID"
-  value       = try(azurerm_subnet.container_apps[0].id, null)
+output "container_apps_subnet_id" {
+  description = "ID of the Container Apps subnet"
+  value       = azurerm_subnet.container_apps.id
 }
 
-output "subnet_sql_id" {
-  description = "SQL subnet ID"
-  value       = try(azurerm_subnet.sql[0].id, null)
+output "container_apps_subnet_name" {
+  description = "Name of the Container Apps subnet"
+  value       = azurerm_subnet.container_apps.name
 }
 
-output "subnet_redis_id" {
-  description = "Redis subnet ID"
-  value       = try(azurerm_subnet.redis[0].id, null)
+output "nsg_id" {
+  description = "ID of the network security group"
+  value       = azurerm_network_security_group.main.id
 }

@@ -1,43 +1,30 @@
 output "id" {
-  description = "Redis Cache resource ID"
+  description = "ID of the Redis cache"
   value       = azurerm_redis_cache.main.id
 }
 
 output "name" {
-  description = "Redis Cache name"
+  description = "Name of the Redis cache"
   value       = azurerm_redis_cache.main.name
 }
 
 output "hostname" {
-  description = "Redis Cache hostname"
+  description = "Hostname of the Redis cache"
   value       = azurerm_redis_cache.main.hostname
 }
 
 output "port" {
-  description = "Redis Cache SSL port"
+  description = "Port of the Redis cache"
+  value       = azurerm_redis_cache.main.port
+}
+
+output "ssl_port" {
+  description = "SSL port of the Redis cache"
   value       = azurerm_redis_cache.main.ssl_port
 }
 
 output "primary_access_key" {
-  description = "Primary access key"
+  description = "Primary access key for the Redis cache"
   value       = azurerm_redis_cache.main.primary_access_key
-  sensitive   = true
-}
-
-output "secondary_access_key" {
-  description = "Secondary access key"
-  value       = azurerm_redis_cache.main.secondary_access_key
-  sensitive   = true
-}
-
-output "primary_connection_string" {
-  description = "Primary connection string"
-  value       = azurerm_redis_cache.main.primary_connection_string
-  sensitive   = true
-}
-
-output "secondary_connection_string" {
-  description = "Secondary connection string"
-  value       = azurerm_redis_cache.main.secondary_connection_string
   sensitive   = true
 }

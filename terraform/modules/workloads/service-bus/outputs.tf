@@ -1,34 +1,24 @@
-output "id" {
-  description = "Service Bus namespace resource ID"
+output "namespace_id" {
+  description = "ID of the Service Bus namespace"
   value       = azurerm_servicebus_namespace.main.id
 }
 
-output "name" {
-  description = "Service Bus namespace name"
+output "namespace_name" {
+  description = "Name of the Service Bus namespace"
   value       = azurerm_servicebus_namespace.main.name
 }
 
-output "endpoint" {
-  description = "Service Bus namespace endpoint"
-  value       = azurerm_servicebus_namespace.main.endpoint
+output "queue_id" {
+  description = "ID of the Service Bus queue"
+  value       = azurerm_servicebus_queue.events.id
 }
 
-output "identity_principal_id" {
-  description = "System assigned identity principal ID"
-  value       = azurerm_servicebus_namespace.main.identity[0].principal_id
+output "topic_id" {
+  description = "ID of the Service Bus topic"
+  value       = azurerm_servicebus_topic.events.id
 }
 
-output "queue_ids" {
-  description = "Map of queue names to their resource IDs"
-  value       = { for k, v in azurerm_servicebus_queue.queues : k => v.id }
-}
-
-output "topic_ids" {
-  description = "Map of topic names to their resource IDs"
-  value       = { for k, v in azurerm_servicebus_topic.topics : k => v.id }
-}
-
-output "subscription_ids" {
-  description = "Map of subscription keys to their resource IDs"
-  value       = { for k, v in azurerm_servicebus_subscription.subscriptions : k => v.id }
+output "subscription_id" {
+  description = "ID of the Service Bus subscription"
+  value       = azurerm_servicebus_subscription.events.id
 }

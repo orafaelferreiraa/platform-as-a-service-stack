@@ -39,18 +39,214 @@ Consulte obrigatoriamente o MCP oficial:
 
 ## Escopo da Plataforma
 
-Recursos a serem oferecidos (em ordem de dependência):
+### Modo de Criação
 
-1. **Managed Identity** - Base para autenticação (required for Key Vault, Storage, Service Bus, Event Grid, SQL)
-2. **VNet Spoke** - Rede privada (optional for Storage, Service Bus, SQL, Redis, Container Apps)
-3. **Observability** - Log Analytics + App Insights (required for Container Apps, diagnostics)
-4. **Key Vault** - Gestão de secrets (uses: Managed Identity | required for SQL password)
-5. **Storage Account** - Armazenamento (uses: Managed Identity, VNet)
-6. **Service Bus** - Mensageria (uses: Managed Identity)
-7. **Event Grid** - Eventos (uses: Managed Identity)
-8. **SQL Server & Database** - Banco de dados (uses: Managed Identity, Key Vault, VNet)
-9. **Redis Cache** - Cache (uses: VNet)
-10. **Container Apps** - Containers (requires: Observability | uses: VNet)
+O usuário deve poder escolher entre:
+1. **Criar todos os recursos** - Deploy completo da plataforma
+2. **Criar recursos individuais** - Habilitar/desabilitar cada recurso via feature flags
+
+### Feature Flags (Variáveis Booleanas)
+
+Cada recurso deve ter uma variável `enable_<recurso>` para controle individual:
+
+```hcl
+# Feature flags - todos habilitados por padrão
+variable "enable_vnet" {
+  type    = bool
+  default = true
+}
+
+variable "enable_observability" {
+  type    = bool
+  default = true
+}
+
+variable "enable_key_vault" {
+  type    = bool
+  default = true
+}
+
+variable "enable_storage" {
+  type    = bool
+  default = true
+}
+
+variable "enable_service_bus" {
+  type    = bool
+  default = true
+}
+
+variable "enable_event_grid" {
+  type    = bool
+  default = true
+}
+
+variable "enable_sql" {
+  type    = bool
+  default = true
+}
+
+variable "enable_redis" {
+  type    = bool
+  default = true
+}
+
+variable "enable_container_apps" {
+  type    = bool
+  default = true
+}
+```
+
+### Mapa de Dependências entre Recursos
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        RECURSOS INDEPENDENTES                                │
+│  (podem ser criados sem dependências)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ✅ Resource Group      - Sempre criado (base de tudo)                       │
+│  ✅ Managed Identity    - Sempre criado (base de autenticação)               │
+│  ✅ VNet Spoke          - Independente (enable_vnet)                         │
+│  ✅ Observability       - Independente (enable_observability)                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      RECURSOS COM DEPENDÊNCIAS OPCIONAIS                     │
+│  (podem usar outros recursos se habilitados)                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  📦 Storage Account                                                          │
+│      └── Usa: Managed Identity (RBAC), VNet (network rules) [opcional]       │
+│                                                                              │
+│  📨 Service Bus                                                              │
+│      └── Usa: Managed Identity (RBAC) [opcional]                             │
+│                                                                              │
+│  ⚡ Event Grid                                                               │
+│      └── Usa: Managed Identity (RBAC), Service Bus (subscriptions) [opcional]│
+│                                                                              │
+│  🔴 Redis Cache                                                              │
+│      └── Usa: VNet (Premium SKU only) [opcional]                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      RECURSOS COM DEPENDÊNCIAS OBRIGATÓRIAS                  │
+│  (REQUEREM outros recursos para funcionar)                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  🗄️ SQL Server & Database                                                   │
+│      └── REQUER: Managed Identity (output: admin_password)                   │
+│      └── Usa: Key Vault (armazena senha), VNet (firewall rules) [opcional]   │
+│      ⚠️  Key Vault depende do SQL para armazenar a senha gerada              │
+│                                                                              │
+│  🔐 Key Vault                                                                │
+│      └── REQUER: SQL (se enable_sql=true, armazena sql-admin-password)       │
+│      └── Usa: Managed Identity (RBAC) [opcional]                             │
+│      ⚠️  depends_on = [module.sql] para evitar ciclo                         │
+│                                                                              │
+│  📦 Container Apps                                                           │
+│      └── REQUER: Observability (Log Analytics workspace_id)                  │
+│      └── Usa: VNet (infrastructure_subnet_id) [opcional]                     │
+│      ⚠️  NÃO será criado se enable_observability = false                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Tabela de Dependências (Referência Rápida)
+
+| Recurso | Depende de (OBRIGATÓRIO) | Usa (OPCIONAL) | Condição de Criação |
+|---------|-------------------------|----------------|---------------------|
+| Resource Group | - | - | Sempre criado |
+| Managed Identity | Resource Group | - | Sempre criado |
+| VNet Spoke | Resource Group | - | `enable_vnet = true` |
+| Observability | Resource Group | - | `enable_observability = true` |
+| Storage Account | Resource Group | Managed Identity, VNet | `enable_storage = true` |
+| Service Bus | Resource Group | Managed Identity | `enable_service_bus = true` |
+| Event Grid | Resource Group | Managed Identity, Service Bus | `enable_event_grid = true` |
+| Redis Cache | Resource Group | VNet (Premium) | `enable_redis = true` |
+| **SQL** | Resource Group, Managed Identity | VNet | `enable_sql = true` |
+| **Key Vault** | Resource Group, SQL* | Managed Identity | `enable_key_vault = true` |
+| **Container Apps** | Resource Group, **Observability** | VNet | `enable_container_apps = true AND enable_observability = true` |
+
+> \* Key Vault depende do SQL apenas para armazenar a senha gerada. Se `enable_sql = false`, Key Vault é criado sem secrets.
+
+### Validações Automáticas
+
+O Terraform deve validar e alertar sobre dependências não satisfeitas:
+
+```hcl
+# Container Apps requer Observability
+resource "null_resource" "validate_container_apps" {
+  count = var.enable_container_apps && !var.enable_observability ? 1 : 0
+
+  provisioner "local-exec" {
+    command = "echo 'ERROR: Container Apps requires Observability (enable_observability = true)' && exit 1"
+  }
+}
+```
+
+### Exemplos de Uso
+
+**Deploy Completo (todos os recursos):**
+```hcl
+# terraform.tfvars - Padrão, todos habilitados
+name = "myplatform"
+# Todos os enable_* são true por padrão
+```
+
+**Apenas Infraestrutura Base:**
+```hcl
+name = "myplatform"
+enable_vnet           = true
+enable_observability  = true
+enable_key_vault      = false
+enable_storage        = false
+enable_service_bus    = false
+enable_event_grid     = false
+enable_sql            = false
+enable_redis          = false
+enable_container_apps = false
+```
+
+**Apenas Mensageria (Service Bus + Event Grid):**
+```hcl
+name = "myplatform"
+enable_vnet           = false
+enable_observability  = false
+enable_key_vault      = false
+enable_storage        = false
+enable_service_bus    = true
+enable_event_grid     = true
+enable_sql            = false
+enable_redis          = false
+enable_container_apps = false
+```
+
+**Apenas Banco de Dados (SQL + Key Vault para senha):**
+```hcl
+name = "myplatform"
+enable_vnet           = false
+enable_observability  = false
+enable_key_vault      = true   # Para armazenar a senha do SQL
+enable_storage        = false
+enable_service_bus    = false
+enable_event_grid     = false
+enable_sql            = true   # Requer Key Vault para senha
+enable_redis          = false
+enable_container_apps = false
+```
+
+**Container Apps (requer Observability):**
+```hcl
+name = "myplatform"
+enable_vnet           = true   # Opcional mas recomendado
+enable_observability  = true   # OBRIGATÓRIO para Container Apps
+enable_key_vault      = false
+enable_storage        = false
+enable_service_bus    = false
+enable_event_grid     = false
+enable_sql            = false
+enable_redis          = false
+enable_container_apps = true
+```
 
 ---
 
@@ -477,12 +673,27 @@ terraform/
 
 ## Checklist Final
 
-- [ ] Região padrão eastus2
+### Configuração Base
+- [ ] Região padrão eastus2 (hardcoded)
 - [ ] Sem `environment` em nenhum lugar
 - [ ] Input único `name` na pipeline
-- [ ] SQL com usuário padrão e senha no Key Vault
+
+### Feature Flags e Dependências
+- [ ] Cada recurso tem `enable_<recurso>` variável
+- [ ] Resource Group e Managed Identity sempre criados
+- [ ] Container Apps valida `enable_observability = true`
+- [ ] Key Vault usa `depends_on = [module.sql]`
+- [ ] Recursos com `count` baseado em feature flags
+
+### Recursos
+- [ ] SQL com usuário padrão `sql_admin` e senha no Key Vault
 - [ ] Todos os Diagnostic Settings com `enabled_metric`
-- [ ] Sem atributos deprecated
+- [ ] Sem atributos deprecated (Provider 4.x)
 - [ ] Sem recursos não suportados
 - [ ] Sem dependências cíclicas
-- [ ] `terraform validate` passando
+
+### Validação
+- [ ] `terraform init -backend=false` - Success
+- [ ] `terraform validate` - Success
+- [ ] Testar com todos os recursos habilitados
+- [ ] Testar com recursos individuais

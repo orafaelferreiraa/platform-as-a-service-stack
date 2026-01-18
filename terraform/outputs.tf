@@ -1,187 +1,130 @@
-# =============================================================================
-# Platform Outputs
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Foundation
-# -----------------------------------------------------------------------------
 output "resource_group_name" {
-  description = "Resource group name"
+  description = "Name of the resource group"
   value       = module.resource_group.name
 }
 
 output "resource_group_id" {
-  description = "Resource group ID"
+  description = "ID of the resource group"
   value       = module.resource_group.id
 }
 
-output "location" {
-  description = "Azure region"
-  value       = var.location
-}
-
-# -----------------------------------------------------------------------------
-# Security: Managed Identity
-# -----------------------------------------------------------------------------
 output "managed_identity_id" {
-  description = "Managed Identity resource ID"
+  description = "ID of the managed identity"
   value       = module.managed_identity.id
 }
 
-output "managed_identity_client_id" {
-  description = "Managed Identity client ID"
-  value       = module.managed_identity.client_id
-}
-
 output "managed_identity_principal_id" {
-  description = "Managed Identity principal ID"
+  description = "Principal ID of the managed identity"
   value       = module.managed_identity.principal_id
 }
 
-# -----------------------------------------------------------------------------
-# Networking
-# -----------------------------------------------------------------------------
+output "managed_identity_client_id" {
+  description = "Client ID of the managed identity"
+  value       = module.managed_identity.client_id
+}
+
+# VNet outputs
 output "vnet_id" {
-  description = "Virtual Network ID"
-  value       = var.enable_vnet ? module.vnet[0].id : null
+  description = "ID of the VNet"
+  value       = var.enable_vnet ? module.vnet_spoke[0].id : null
 }
 
 output "vnet_name" {
-  description = "Virtual Network name"
-  value       = var.enable_vnet ? module.vnet[0].name : null
+  description = "Name of the VNet"
+  value       = var.enable_vnet ? module.vnet_spoke[0].name : null
 }
 
-# -----------------------------------------------------------------------------
-# Observability
-# -----------------------------------------------------------------------------
+# Observability outputs
 output "log_analytics_workspace_id" {
-  description = "Log Analytics Workspace ID"
+  description = "ID of the Log Analytics Workspace"
   value       = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
-output "app_insights_id" {
-  description = "Application Insights ID"
-  value       = var.enable_observability ? module.observability[0].app_insights_id : null
+output "application_insights_instrumentation_key" {
+  description = "Instrumentation key for Application Insights"
+  value       = var.enable_observability ? module.observability[0].app_insights_instrumentation_key : null
+  sensitive   = true
 }
 
-output "app_insights_connection_string" {
-  description = "Application Insights connection string"
+output "application_insights_connection_string" {
+  description = "Connection string for Application Insights"
   value       = var.enable_observability ? module.observability[0].app_insights_connection_string : null
   sensitive   = true
 }
 
-# -----------------------------------------------------------------------------
-# Key Vault
-# -----------------------------------------------------------------------------
-output "key_vault_id" {
-  description = "Key Vault ID"
-  value       = var.enable_key_vault ? module.key_vault[0].id : null
-}
-
-output "key_vault_uri" {
-  description = "Key Vault URI (use for secret retrieval at runtime)"
-  value       = var.enable_key_vault ? module.key_vault[0].vault_uri : null
-}
-
-# -----------------------------------------------------------------------------
-# Storage Account
-# -----------------------------------------------------------------------------
-output "storage_account_id" {
-  description = "Storage Account ID"
-  value       = var.enable_storage ? module.storage[0].id : null
-}
-
+# Storage Account outputs
 output "storage_account_name" {
-  description = "Storage Account name"
-  value       = var.enable_storage ? module.storage[0].name : null
+  description = "Name of the storage account"
+  value       = var.enable_storage ? module.storage_account[0].name : null
 }
 
-output "storage_primary_blob_endpoint" {
-  description = "Storage Account primary blob endpoint"
-  value       = var.enable_storage ? module.storage[0].primary_blob_endpoint : null
+output "storage_account_id" {
+  description = "ID of the storage account"
+  value       = var.enable_storage ? module.storage_account[0].id : null
 }
 
-# -----------------------------------------------------------------------------
-# Service Bus
-# -----------------------------------------------------------------------------
-output "service_bus_id" {
-  description = "Service Bus namespace ID"
-  value       = var.enable_service_bus ? module.service_bus[0].id : null
+# Service Bus outputs
+output "service_bus_namespace_id" {
+  description = "ID of the Service Bus namespace"
+  value       = var.enable_service_bus ? module.service_bus[0].namespace_id : null
 }
 
-output "service_bus_endpoint" {
-  description = "Service Bus namespace endpoint"
-  value       = var.enable_service_bus ? module.service_bus[0].endpoint : null
+output "service_bus_namespace_name" {
+  description = "Name of the Service Bus namespace"
+  value       = var.enable_service_bus ? module.service_bus[0].namespace_name : null
 }
 
-# -----------------------------------------------------------------------------
-# Event Grid
-# -----------------------------------------------------------------------------
-output "event_grid_topic_id" {
-  description = "Event Grid topic ID"
-  value       = var.enable_event_grid ? module.event_grid[0].id : null
+# Event Grid outputs
+output "event_grid_domain_id" {
+  description = "ID of the Event Grid domain"
+  value       = var.enable_event_grid ? module.event_grid[0].domain_id : null
 }
 
-output "event_grid_topic_endpoint" {
-  description = "Event Grid topic endpoint"
-  value       = var.enable_event_grid ? module.event_grid[0].endpoint : null
+# Redis outputs
+output "redis_cache_id" {
+  description = "ID of the Redis cache"
+  value       = var.enable_redis ? module.redis_cache[0].id : null
 }
 
-# -----------------------------------------------------------------------------
-# SQL
-# -----------------------------------------------------------------------------
+output "redis_cache_hostname" {
+  description = "Hostname of the Redis cache"
+  value       = var.enable_redis ? module.redis_cache[0].hostname : null
+}
+
+# SQL outputs
 output "sql_server_id" {
-  description = "SQL Server ID"
+  description = "ID of the SQL server"
   value       = var.enable_sql ? module.sql[0].server_id : null
 }
 
 output "sql_server_fqdn" {
-  description = "SQL Server fully qualified domain name"
+  description = "FQDN of the SQL server"
   value       = var.enable_sql ? module.sql[0].server_fqdn : null
 }
 
 output "sql_database_id" {
-  description = "SQL Database ID"
+  description = "ID of the SQL database"
   value       = var.enable_sql ? module.sql[0].database_id : null
 }
 
-output "sql_connection_string" {
-  description = "SQL connection string template (uses Managed Identity auth)"
-  value       = var.enable_sql ? module.sql[0].connection_string : null
+# Key Vault outputs
+output "key_vault_id" {
+  description = "ID of the Key Vault"
+  value       = var.enable_key_vault ? module.key_vault[0].id : null
 }
 
-# -----------------------------------------------------------------------------
-# Redis
-# -----------------------------------------------------------------------------
-output "redis_id" {
-  description = "Redis Cache ID"
-  value       = var.enable_redis ? module.redis[0].id : null
+output "key_vault_uri" {
+  description = "URI of the Key Vault"
+  value       = var.enable_key_vault ? module.key_vault[0].vault_uri : null
 }
 
-output "redis_hostname" {
-  description = "Redis Cache hostname"
-  value       = var.enable_redis ? module.redis[0].hostname : null
-}
-
-output "redis_port" {
-  description = "Redis Cache SSL port"
-  value       = var.enable_redis ? module.redis[0].port : null
-}
-
-# -----------------------------------------------------------------------------
-# Container Apps
-# -----------------------------------------------------------------------------
+# Container Apps outputs
 output "container_apps_environment_id" {
-  description = "Container Apps Environment ID"
-  value       = var.enable_container_apps && var.enable_observability ? module.container_apps[0].environment_id : null
+  description = "ID of the Container Apps Environment"
+  value       = var.enable_container_apps && var.enable_observability ? module.container_apps[0].id : null
 }
 
-output "container_apps_default_domain" {
-  description = "Container Apps Environment default domain"
-  value       = var.enable_container_apps && var.enable_observability ? module.container_apps[0].default_domain : null
-}
-
-output "container_apps_fqdns" {
-  description = "Map of Container App names to their FQDNs"
-  value       = var.enable_container_apps && var.enable_observability ? module.container_apps[0].app_fqdns : null
+output "container_apps_environment_name" {
+  description = "Name of the Container Apps Environment"
+  value       = var.enable_container_apps && var.enable_observability ? module.container_apps[0].name : null
 }

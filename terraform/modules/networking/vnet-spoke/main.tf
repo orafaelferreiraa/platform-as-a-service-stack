@@ -1,70 +1,61 @@
-# Networking Module: VNet Spoke
-# Creates a Virtual Network with subnets for platform services
+locals {
+  subnet_default_name        = "snet-default-${var.name}"
+  subnet_container_apps_name = "snet-ca-${var.name}"
+  nsg_name                   = "nsg-${var.name}"
+}
 
+# Network Security Group
+resource "azurerm_network_security_group" "main" {
+  name                = local.nsg_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = var.tags
+}
+
+# Virtual Network
 resource "azurerm_virtual_network" "main" {
   name                = var.name
   location            = var.location
   resource_group_name = var.resource_group_name
   address_space       = var.address_space
-
-  tags = var.tags
+  tags                = var.tags
 }
 
-# Default subnet for general workloads
+# Default Subnet
 resource "azurerm_subnet" "default" {
-  name                 = "snet-default"
+  name                 = local.subnet_default_name
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = [var.subnets.default]
+  address_prefixes     = [var.default_subnet_prefix]
+
+  service_endpoints = [
+    "Microsoft.Storage",
+    "Microsoft.Sql",
+    "Microsoft.KeyVault"
+  ]
 }
 
-# Subnet for private endpoints
-resource "azurerm_subnet" "private_endpoints" {
-  name                 = "snet-private-endpoints"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = [var.subnets.private_endpoints]
-}
-
-# Subnet for Container Apps Environment
+# Container Apps Subnet (requires delegation)
 resource "azurerm_subnet" "container_apps" {
-  count = var.subnets.container_apps != null ? 1 : 0
-
-  name                 = "snet-container-apps"
+  name                 = local.subnet_container_apps_name
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = [var.subnets.container_apps]
+  address_prefixes     = [var.container_apps_subnet_prefix]
 
   delegation {
-    name = "delegation-container-apps"
+    name = "Microsoft.App.environments"
 
     service_delegation {
       name = "Microsoft.App/environments"
       actions = [
-        "Microsoft.Network/virtualNetworks/subnets/join/action",
+        "Microsoft.Network/virtualNetworks/subnets/join/action"
       ]
     }
   }
 }
 
-# Subnet for SQL Server (optional)
-resource "azurerm_subnet" "sql" {
-  count = var.subnets.sql != null ? 1 : 0
-
-  name                 = "snet-sql"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = [var.subnets.sql]
-
-  service_endpoints = ["Microsoft.Sql"]
-}
-
-# Subnet for Redis Cache (optional)
-resource "azurerm_subnet" "redis" {
-  count = var.subnets.redis != null ? 1 : 0
-
-  name                 = "snet-redis"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = [var.subnets.redis]
+# Associate NSG with default subnet
+resource "azurerm_subnet_network_security_group_association" "default" {
+  subnet_id                 = azurerm_subnet.default.id
+  network_security_group_id = azurerm_network_security_group.main.id
 }

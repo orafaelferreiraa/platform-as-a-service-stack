@@ -1,10 +1,10 @@
-variable "log_analytics_name" {
-  description = "Name of the Log Analytics workspace"
+variable "name" {
+  description = "Base name for observability resources"
   type        = string
 }
 
-variable "app_insights_name" {
-  description = "Name of the Application Insights resource"
+variable "location" {
+  description = "Azure region"
   type        = string
 }
 
@@ -13,33 +13,12 @@ variable "resource_group_name" {
   type        = string
 }
 
-variable "location" {
-  description = "Azure region"
-  type        = string
-  default     = "eastus2"
-}
-
-variable "log_analytics_sku" {
-  description = "SKU for Log Analytics workspace"
-  type        = string
-  default     = "PerGB2018"
-}
-
-variable "retention_in_days" {
-  description = "Data retention in days for Log Analytics"
-  type        = number
-  default     = 30
-
-  validation {
-    condition     = var.retention_in_days >= 30 && var.retention_in_days <= 730
-    error_message = "Retention must be between 30 and 730 days."
-  }
-}
-
-variable "application_type" {
-  description = "Application type for Application Insights"
-  type        = string
-  default     = "web"
+variable "naming" {
+  description = "Naming module output"
+  type = object({
+    log_analytics_workspace = string
+    application_insights    = string
+  })
 }
 
 variable "tags" {
