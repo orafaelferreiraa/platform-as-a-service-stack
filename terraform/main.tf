@@ -91,16 +91,17 @@ module "service_bus" {
 
 # Workloads: Event Grid (optional)
 module "event_grid" {
-  count                      = var.enable_event_grid ? 1 : 0
-  source                     = "./modules/workloads/event-grid"
-  name                       = module.naming.event_grid_domain
-  location                   = var.location
-  resource_group_name        = module.resource_group.name
-  managed_identity_id        = module.managed_identity.id
-  service_bus_topic_id       = var.enable_service_bus ? module.service_bus[0].topic_id : null
-  tags                       = local.base_tags
-  enable_observability       = var.enable_observability
-  log_analytics_workspace_id = var.enable_observability ? module.observability[0].log_analytics_id : null
+  count                        = var.enable_event_grid ? 1 : 0
+  source                       = "./modules/workloads/event-grid"
+  name                         = module.naming.event_grid_domain
+  location                     = var.location
+  resource_group_name          = module.resource_group.name
+  managed_identity_id          = module.managed_identity.id
+  service_bus_topic_id         = var.enable_service_bus ? module.service_bus[0].topic_id : null
+  enable_service_bus_integration = var.enable_service_bus
+  tags                         = local.base_tags
+  enable_observability         = var.enable_observability
+  log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
 # Workloads: Redis Cache (optional)

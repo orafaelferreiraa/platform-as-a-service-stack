@@ -604,6 +604,68 @@ resource "azurerm_role_assignment" "sql_key_vault_access" {
 
 ---
 
+## Count Conditions - Regras Críticas
+
+### ❌ NUNCA usar null checks em variáveis que vêm de módulos condicionais
+
+```hcl
+# ❌ ERRADO - Causa: "count value depends on resource attributes 
+# that cannot be determined until apply"
+count = var.log_analytics_workspace_id != null ? 1 : 0
+count = var.service_bus_topic_id != "" ? 1 : 0
+count = var.some_id != null && var.some_id != "" ? 1 : 0
+```
+
+### ✅ CORRETO - Sempre usar boolean flags ou variáveis determinísticas
+
+```hcl
+# ✅ CORRETO - Usa apenas boolean flag
+count = var.enable_observability ? 1 : 0
+
+# ✅ CORRETO - Novo boolean para controlar condicionalidade
+variable "enable_service_bus_integration" {
+  description = "Enable Event Grid subscription to Service Bus"
+  type        = bool
+  default     = false
+}
+
+count = var.enable_service_bus_integration ? 1 : 0
+```
+
+### Por que isso é necessário?
+
+Quando um módulo é criado com `count`, seus outputs são indeterminados em tempo de plan (podem ser null). Se você tentar usar esses outputs em um `count` condition com verificação de null/string vazio, Terraform não consegue calcular o count em tempo de plan.
+
+**Solução**: Sempre passe um boolean flag explícito do módulo pai para indicar se o recurso deve ser criado:
+
+```hcl
+# No main.tf (módulo pai)
+module "event_grid" {
+  count                        = var.enable_event_grid ? 1 : 0
+  enable_service_bus_integration = var.enable_service_bus  # ✅ Boolean
+  service_bus_topic_id         = var.enable_service_bus ? module.service_bus[0].topic_id : null
+}
+
+# No módulo event-grid/variables.tf
+variable "enable_service_bus_integration" {
+  type    = bool
+  default = false
+}
+
+variable "service_bus_topic_id" {
+  type    = string
+  default = null
+}
+
+# No módulo event-grid/main.tf
+resource "azurerm_eventgrid_event_subscription" "service_bus" {
+  count = var.enable_service_bus_integration ? 1 : 0  # ✅ Usa boolean
+  service_bus_topic_endpoint_id = var.service_bus_topic_id
+}
+```
+
+---
+
 ## Naming Convention
 
 Padrão simplificado: `<prefix>-<name>-<location_abbr>`

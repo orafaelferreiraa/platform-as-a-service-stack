@@ -19,7 +19,7 @@ resource "azurerm_eventgrid_domain_topic" "events" {
 
 # Create event subscription to Service Bus topic (if enabled)
 resource "azurerm_eventgrid_event_subscription" "service_bus" {
-  count = var.service_bus_topic_id != "" ? 1 : 0
+  count = var.enable_service_bus_integration ? 1 : 0
   name  = "evgs-servicebus"
   scope = azurerm_eventgrid_domain.main.id
 

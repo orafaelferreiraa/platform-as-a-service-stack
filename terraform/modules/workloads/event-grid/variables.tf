@@ -24,6 +24,12 @@ variable "service_bus_topic_id" {
   default     = null
 }
 
+variable "enable_service_bus_integration" {
+  description = "Enable Event Grid subscription to Service Bus topic"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
