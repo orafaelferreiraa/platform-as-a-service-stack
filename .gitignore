@@ -1,0 +1,26 @@
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/.tfplan
+terraform/*.tfplan
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log
+terraform/crash.*.log
+terraform/.DS_Store
+terraform/.idea/
+terraform/*.swp
+terraform/*~
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.env
+.env.local
