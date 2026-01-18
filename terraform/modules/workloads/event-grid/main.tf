@@ -19,7 +19,7 @@ resource "azurerm_eventgrid_domain_topic" "events" {
 
 # Create event subscription to Service Bus topic (if enabled)
 resource "azurerm_eventgrid_event_subscription" "service_bus" {
-  count = var.service_bus_topic_id != null ? 1 : 0
+  count = try(var.service_bus_topic_id != null && var.service_bus_topic_id != "", false) ? 1 : 0
   name  = "evgs-servicebus"
   scope = azurerm_eventgrid_domain.main.id
 
@@ -33,7 +33,7 @@ resource "azurerm_eventgrid_event_subscription" "service_bus" {
 
 # Diagnostic settings
 resource "azurerm_monitor_diagnostic_setting" "main" {
-  count                      = var.enable_observability && var.log_analytics_workspace_id != null ? 1 : 0
+  count                      = var.enable_observability ? 1 : 0
   name                       = "diag-${var.name}"
   target_resource_id         = azurerm_eventgrid_domain.main.id
   log_analytics_workspace_id = var.log_analytics_workspace_id

@@ -41,20 +41,20 @@ resource "azurerm_role_assignment" "managed_identity_blob_contributor" {
 
 # Create default containers
 resource "azurerm_storage_container" "data" {
-  name                  = "data"
-  storage_account_name  = azurerm_storage_account.main.name
+  name                   = "data"
+  storage_account_id     = azurerm_storage_account.main.id
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "logs" {
-  name                  = "logs"
-  storage_account_name  = azurerm_storage_account.main.name
+  name                   = "logs"
+  storage_account_id     = azurerm_storage_account.main.id
   container_access_type = "private"
 }
 
 # Diagnostic settings
 resource "azurerm_monitor_diagnostic_setting" "main" {
-  count                      = var.enable_observability && var.log_analytics_workspace_id != null ? 1 : 0
+  count                      = var.enable_observability ? 1 : 0
   name                       = "diag-${var.name}"
   target_resource_id         = "${azurerm_storage_account.main.id}/blobServices/default"
   log_analytics_workspace_id = var.log_analytics_workspace_id

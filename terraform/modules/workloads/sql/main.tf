@@ -61,7 +61,7 @@ resource "azurerm_mssql_database" "main" {
 
 # Diagnostic settings for SQL Server
 resource "azurerm_monitor_diagnostic_setting" "server" {
-  count                      = var.enable_observability && var.log_analytics_workspace_id != null ? 1 : 0
+  count                      = var.enable_observability ? 1 : 0
   name                       = "diag-${var.server_name}"
   target_resource_id         = azurerm_mssql_server.main.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
@@ -81,7 +81,7 @@ resource "azurerm_monitor_diagnostic_setting" "server" {
 
 # Diagnostic settings for SQL Database
 resource "azurerm_monitor_diagnostic_setting" "database" {
-  count                      = var.enable_observability && var.log_analytics_workspace_id != null ? 1 : 0
+  count                      = var.enable_observability ? 1 : 0
   name                       = "diag-${var.database_name}"
   target_resource_id         = azurerm_mssql_database.main.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
