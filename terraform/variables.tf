@@ -19,6 +19,12 @@ variable "location" {
 }
 
 # Feature flags - all enabled by default
+variable "enable_managed_identity" {
+  description = "Enable Managed Identity (required by: Storage, Service Bus, Event Grid, SQL, Key Vault for RBAC)"
+  type        = bool
+  default     = true
+}
+
 variable "enable_vnet" {
   description = "Enable Virtual Network Spoke"
   type        = bool

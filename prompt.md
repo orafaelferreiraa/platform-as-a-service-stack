@@ -51,6 +51,12 @@ Cada recurso deve ter uma variável `enable_<recurso>` para controle individual:
 
 ```hcl
 # Feature flags - todos habilitados por padrão
+variable "enable_managed_identity" {
+  type    = bool
+  default = true
+  description = "Required by: Storage, Service Bus, Event Grid, SQL, Key Vault for RBAC"
+}
+
 variable "enable_vnet" {
   type    = bool
   default = true
@@ -100,9 +106,10 @@ variable "enable_container_apps" {
 │  (podem ser criados sem dependências)                                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  ✅ Resource Group      - Sempre criado (base de tudo)                       │
-│  ✅ Managed Identity    - Sempre criado (base de autenticação)               │
-│  ✅ VNet Spoke          - Independente (enable_vnet)                         │
-│  ✅ Observability       - Independente (enable_observability)                │
+│  🔐 Managed Identity    - Opcional (enable_managed_identity)                 │
+│      ⚠️  REQUERIDO por: Storage, Service Bus, Event Grid, SQL, Key Vault    │
+│  🌐 VNet Spoke          - Opcional (enable_vnet)                             │
+│  📊 Observability       - Opcional (enable_observability)                    │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -111,13 +118,21 @@ variable "enable_container_apps" {
 │  (podem usar outros recursos se habilitados)                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  📦 Storage Account                                                          │
-│      └── Usa: Managed Identity (RBAC), VNet (network rules) [opcional]       │
+│      └── Usa: Managed Identity (RBAC) [recomendado], VNet (network rules)    │
 │                                                                              │
 │  📨 Service Bus                                                              │
-│      └── Usa: Managed Identity (RBAC) [opcional]                             │
+│      └── Usa: Managed Identity (RBAC) [recomendado]                          │
 │                                                                              │
 │  ⚡ Event Grid                                                               │
 │      └── Usa: Managed Identity (RBAC), Service Bus (subscriptions) [opcional]│
+│                                                                              │
+│  🗄️ SQL Server & Database                                                   │
+│      └── Usa: Managed Identity (RBAC) [recomendado], VNet (firewall rules)   │
+│                                                                              │
+│  🔐 Key Vault                                                                │
+│      └── Usa: Managed Identity (RBAC) [recomendado]                          │
+│      └── Armazena: SQL password (se enable_sql=true)                         │
+│      ⚠️  depends_on = [module.sql] para evitar ciclo                         │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -125,16 +140,6 @@ variable "enable_container_apps" {
 │                      RECURSOS COM DEPENDÊNCIAS OBRIGATÓRIAS                  │
 │  (REQUEREM outros recursos para funcionar)                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  🗄️ SQL Server & Database                                                   │
-│      └── REQUER: Managed Identity (output: admin_password)                   │
-│      └── Usa: Key Vault (armazena senha), VNet (firewall rules) [opcional]   │
-│      ⚠️  Key Vault depende do SQL para armazenar a senha gerada              │
-│                                                                              │
-│  🔐 Key Vault                                                                │
-│      └── REQUER: SQL (se enable_sql=true, armazena sql-admin-password)       │
-│      └── Usa: Managed Identity (RBAC) [opcional]                             │
-│      ⚠️  depends_on = [module.sql] para evitar ciclo                         │
-│                                                                              │
 │  📦 Container Apps                                                           │
 │      └── REQUER: Observability (Log Analytics workspace_id)                  │
 │      └── REQUER: workload_profile block quando usando VNet delegada          │
@@ -146,20 +151,22 @@ variable "enable_container_apps" {
 
 ### Tabela de Dependências (Referência Rápida)
 
-| Recurso | Depende de (OBRIGATÓRIO) | Usa (OPCIONAL) | Condição de Criação |
-|---------|-------------------------|----------------|---------------------|
+| Recurso | Depende de (OBRIGATÓRIO) | Usa (OPCIONAL/RECOMENDADO) | Condição de Criação |
+|---------|-------------------------|----------------------------|---------------------|
 | Resource Group | - | - | Sempre criado |
-| Managed Identity | Resource Group | - | Sempre criado |
+| **Managed Identity** | Resource Group | - | `enable_managed_identity = true` |
 | VNet Spoke | Resource Group | - | `enable_vnet = true` |
 | Observability | Resource Group | - | `enable_observability = true` |
-| Storage Account | Resource Group | Managed Identity, VNet | `enable_storage = true` |
-| Service Bus | Resource Group | Managed Identity | `enable_service_bus = true` |
-| Event Grid | Resource Group | Managed Identity, Service Bus | `enable_event_grid = true` |
-| **SQL** | Resource Group, Managed Identity | VNet | `enable_sql = true` |
-| **Key Vault** | Resource Group, SQL* | Managed Identity | `enable_key_vault = true` |
+| Storage Account | Resource Group | **Managed Identity (RBAC)**, VNet | `enable_storage = true` |
+| Service Bus | Resource Group | **Managed Identity (RBAC)** | `enable_service_bus = true` |
+| Event Grid | Resource Group | **Managed Identity (RBAC)**, Service Bus | `enable_event_grid = true` |
+| SQL | Resource Group | **Managed Identity (RBAC)**, VNet | `enable_sql = true` |
+| Key Vault | Resource Group, SQL* | **Managed Identity (RBAC)** | `enable_key_vault = true` |
 | **Container Apps** | Resource Group, **Observability** | VNet | `enable_container_apps = true AND enable_observability = true` |
 
 > \* Key Vault depende do SQL apenas para armazenar a senha gerada. Se `enable_sql = false`, Key Vault é criado sem secrets.
+> 
+> ⚠️ **Managed Identity é fortemente recomendada** para Storage, Service Bus, Event Grid, SQL e Key Vault. Sem ela, o RBAC não será configurado e os recursos não terão permissões automáticas.
 
 ### Validações Automáticas
 
@@ -188,53 +195,57 @@ name = "myplatform"
 **Apenas Infraestrutura Base:**
 ```hcl
 name = "myplatform"
-enable_vnet           = true
-enable_observability  = true
-enable_key_vault      = false
-enable_storage        = false
-enable_service_bus    = false
-enable_event_grid     = false
-enable_sql            = false
-enable_container_apps = false
+enable_managed_identity = false  # Não precisa de RBAC
+enable_vnet             = true
+enable_observability    = true
+enable_key_vault        = false
+enable_storage          = false
+enable_service_bus      = false
+enable_event_grid       = false
+enable_sql              = false
+enable_container_apps   = false
 ```
 
 **Apenas Mensageria (Service Bus + Event Grid):**
 ```hcl
 name = "myplatform"
-enable_vnet           = false
-enable_observability  = false
-enable_key_vault      = false
-enable_storage        = false
-enable_service_bus    = true
-enable_event_grid     = true
-enable_sql            = false
-enable_container_apps = false
+enable_managed_identity = true   # Recomendado para RBAC
+enable_vnet             = false
+enable_observability    = false
+enable_key_vault        = false
+enable_storage          = false
+enable_service_bus      = true
+enable_event_grid       = true
+enable_sql              = false
+enable_container_apps   = false
 ```
 
 **Apenas Banco de Dados (SQL + Key Vault para senha):**
 ```hcl
 name = "myplatform"
-enable_vnet           = false
-enable_observability  = false
-enable_key_vault      = true   # Para armazenar a senha do SQL
-enable_storage        = false
-enable_service_bus    = false
-enable_event_grid     = false
-enable_sql            = true   # Requer Key Vault para senha
-enable_container_apps = false
+enable_managed_identity = true   # Recomendado para RBAC no Key Vault
+enable_vnet             = false
+enable_observability    = false
+enable_key_vault        = true   # Para armazenar a senha do SQL
+enable_storage          = false
+enable_service_bus      = false
+enable_event_grid       = false
+enable_sql              = true
+enable_container_apps   = false
 ```
 
 **Container Apps (requer Observability):**
 ```hcl
 name = "myplatform"
-enable_vnet           = true   # Opcional mas recomendado
-enable_observability  = true   # OBRIGATÓRIO para Container Apps
-enable_key_vault      = false
-enable_storage        = false
-enable_service_bus    = false
-enable_event_grid     = false
-enable_sql            = false
-enable_container_apps = true
+enable_managed_identity = false  # Container Apps não requer
+enable_vnet             = true   # Opcional mas recomendado
+enable_observability    = true   # OBRIGATÓRIO para Container Apps
+enable_key_vault        = false
+enable_storage          = false
+enable_service_bus      = false
+enable_event_grid       = false
+enable_sql              = false
+enable_container_apps   = true
 ```
 
 ---

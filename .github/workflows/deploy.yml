@@ -18,6 +18,11 @@ on:
         default: plan
       
       # Feature Flags - Control which resources to deploy
+      enable_managed_identity:
+        description: 'Enable Managed Identity (required by: Storage, Service Bus, Event Grid, SQL, Key Vault)'
+        required: false
+        type: boolean
+        default: true
       enable_vnet:
         description: 'Enable Virtual Network'
         required: false
@@ -74,6 +79,7 @@ jobs:
       TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_name: ${{ inputs.name }}
       # Feature flags as environment variables
+      TF_VAR_enable_managed_identity: ${{ inputs.enable_managed_identity }}
       TF_VAR_enable_vnet: ${{ inputs.enable_vnet }}
       TF_VAR_enable_observability: ${{ inputs.enable_observability }}
       TF_VAR_enable_key_vault: ${{ inputs.enable_key_vault }}
@@ -104,7 +110,7 @@ jobs:
           echo "| Resource | Enabled |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| Resource Group | ✅ Always |" >> $GITHUB_STEP_SUMMARY
-          echo "| Managed Identity | ✅ Always |" >> $GITHUB_STEP_SUMMARY
+          echo "| Managed Identity | ${{ inputs.enable_managed_identity == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Virtual Network | ${{ inputs.enable_vnet == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Observability | ${{ inputs.enable_observability == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Key Vault | ${{ inputs.enable_key_vault == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
@@ -121,6 +127,23 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Container Apps requires Observability to be enabled. The deployment will fail." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Managed Identity dependency warnings
+          if [ "${{ inputs.enable_managed_identity }}" != "true" ]; then
+            NEEDS_IDENTITY=false
+            RESOURCES_NEEDING=""
+            if [ "${{ inputs.enable_storage }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="Storage Account"; fi
+            if [ "${{ inputs.enable_service_bus }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, Service Bus"; fi
+            if [ "${{ inputs.enable_event_grid }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, Event Grid"; fi
+            if [ "${{ inputs.enable_sql }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, SQL"; fi
+            if [ "${{ inputs.enable_key_vault }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, Key Vault"; fi
+            if [ "$NEEDS_IDENTITY" == "true" ]; then
+              echo "### ⚠️ Managed Identity Warning" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "The following resources require Managed Identity for RBAC: $RESOURCES_NEEDING" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
 
       - name: Setup Terraform
