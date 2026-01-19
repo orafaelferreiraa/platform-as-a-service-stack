@@ -1,21 +1,10 @@
-# Random suffix for globally unique resource names
-# Uses keepers to ensure the suffix only changes when the project name changes
-resource "random_string" "suffix" {
-  length  = 4
-  lower   = true
-  upper   = false
-  numeric = true
-  special = false
-
-  keepers = {
-    # Suffix only regenerates if the project name changes
-    name = var.name
-  }
-}
-
+# Deterministic suffix for globally unique resource names
+# Uses MD5 hash of name to generate consistent suffix - same name always produces same suffix
 locals {
-  name   = lower(var.name)
-  suffix = random_string.suffix.result
+  name = lower(var.name)
+  # Generate a 4-character suffix from MD5 hash of the name
+  # This is deterministic: same name = same suffix, always
+  suffix = substr(md5(var.name), 0, 4)
 
   # Location abbreviations
   location_abbreviations = {

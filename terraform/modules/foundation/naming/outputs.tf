@@ -101,8 +101,8 @@ output "container_apps_environment" {
   value       = "cae-${local.base_name_pattern_unique}"
 }
 
-# Random suffix for reference
-output "random_suffix" {
-  description = "Random suffix used for globally unique names"
+# Deterministic suffix for reference
+output "suffix" {
+  description = "Deterministic suffix used for globally unique names (based on MD5 hash of name)"
   value       = local.suffix
 }

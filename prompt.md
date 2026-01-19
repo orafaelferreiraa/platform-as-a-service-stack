@@ -855,24 +855,13 @@ Formato: <prefix>-<name>-<location_abbr>[-<random_suffix>]
 ### Implementação no Módulo Naming:
 
 ```hcl
-# Random suffix para nomes únicos globalmente
-# IMPORTANTE: Usar keepers para manter o sufixo consistente entre deploys
-resource "random_string" "suffix" {
-  length  = 4
-  lower   = true
-  upper   = false
-  numeric = true
-  special = false
-
-  keepers = {
-    # Sufixo só muda se o nome do projeto mudar
-    name = var.name
-  }
-}
-
+# Sufixo DETERMINÍSTICO para nomes únicos globalmente
+# Usa MD5 hash do nome - mesmo nome sempre produz o mesmo sufixo
 locals {
-  name   = lower(var.name)
-  suffix = random_string.suffix.result
+  name = lower(var.name)
+  # Gera sufixo de 4 caracteres a partir do hash MD5 do nome
+  # DETERMINÍSTICO: mesmo nome = mesmo sufixo, sempre
+  suffix = substr(md5(var.name), 0, 4)
 
   # Padrões de nomenclatura
   base_name_pattern        = "${local.name}-${local.location_abbr}"
@@ -883,11 +872,11 @@ locals {
 
 # Exemplos de outputs
 output "key_vault" {
-  value = "kv${local.base_name_unique_compact}"  # kvtesteus2a1b2
+  value = "kv${local.base_name_unique_compact}"  # kvtesteus2098f
 }
 
 output "sql_server" {
-  value = "sql-${local.base_name_pattern_unique}"  # sql-test-eus2-a1b2
+  value = "sql-${local.base_name_pattern_unique}"  # sql-test-eus2-098f
 }
 
 output "resource_group" {
@@ -895,14 +884,23 @@ output "resource_group" {
 }
 ```
 
-**⚠️ CRÍTICO - random_string com keepers:**
-- SEM `keepers`: O sufixo muda a cada deploy, causando **destruição e recriação** de todos os recursos!
-- COM `keepers`: O sufixo permanece consistente enquanto o `name` não mudar
+**⚠️ CRÍTICO - Por que usar MD5 ao invés de random_string:**
+- `random_string`: Gera valor DIFERENTE a cada deploy, causando **destruição e recriação** de recursos!
+- `random_string + keepers`: Parece resolver, mas adicionar keepers a um recurso existente RECRIA o random_string!
+- `md5(var.name)`: **DETERMINÍSTICO** - mesmo nome SEMPRE produz o mesmo sufixo, sem state!
 
-**Por que usar sufixo aleatório?**
-- Recursos como Key Vault, Storage Account e SQL Server têm nomes **globalmente únicos**
-- Evita conflitos quando o recurso já existe (de deploy anterior ou soft-deleted)
-- Sufixo de 4 caracteres (letras minúsculas + números) = 1.679.616 combinações possíveis
+**Vantagens do MD5:**
+- Não precisa de state - o sufixo é calculado, não armazenado
+- Não existe recurso para importar
+- Mesmo nome = mesmo sufixo em qualquer ambiente
+- Nunca causa destruição acidental de recursos
+
+**Exemplos de sufixos gerados:**
+| Nome | Sufixo (primeiros 4 chars do MD5) |
+|------|-----------------------------------|
+| test | 098f |
+| prod | 37fa |
+| myapp | 0cc1 |
 
 ---
 
@@ -929,18 +927,15 @@ terraform import 'module.key_vault[0].azurerm_key_vault.main' \
 terraform import 'module.storage_account[0].azurerm_storage_account.main' \
   '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.Storage/storageAccounts/st<NAME>eus2<SUFFIX>'
 
-# Importar SQL Server (com sufixo aleatório)
+# Importar SQL Server (com sufixo determinístico)
 terraform import 'module.sql[0].azurerm_mssql_server.main' \
   '/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-<NAME>-eus2/providers/Microsoft.Sql/servers/sql-<NAME>-eus2-<SUFFIX>'
-
-# Importar também o random_string do naming (para manter consistência)
-terraform import 'module.naming.random_string.suffix' '<SUFFIX>'
 ```
 
 **Dicas:**
 - Após importar, execute `terraform plan` para verificar se há drift entre o estado importado e a configuração.
-- O `<SUFFIX>` é o código aleatório de 4 caracteres gerado pelo módulo naming.
-- Ao importar, você também precisa importar o `random_string.suffix` para manter a consistência.
+- O `<SUFFIX>` é calculado automaticamente pelo MD5 do nome (primeiros 4 caracteres).
+- Com MD5 determinístico, não há mais `random_string` para importar!
 
 ---
 
