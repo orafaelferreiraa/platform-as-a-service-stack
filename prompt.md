@@ -759,14 +759,112 @@ module "key_vault" {
 **✅ CORRETO:**
 ```hcl
 # RBAC separado, após ambos os módulos
+# Usar uuidv5 para gerar ID determinístico e evitar recriação
 resource "azurerm_role_assignment" "sql_key_vault_access" {
   count = var.enable_sql && var.enable_key_vault ? 1 : 0
   
+  name                 = uuidv5("dns", "${module.key_vault[0].id}-${module.sql[0].identity_principal_id}-secrets-officer")
   scope                = module.key_vault[0].id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = module.sql[0].identity_principal_id
   
   depends_on = [module.sql, module.key_vault]
+}
+```
+
+---
+
+## Role Assignments - IDs Determinísticos com uuidv5
+
+### Problema: Role Assignments sendo destruídos e recriados
+
+O `azurerm_role_assignment` requer um `name` que é um UUID. Se você não especificar, o Azure gera um **aleatório** a cada execução, causando:
+- **Destroy** do role assignment antigo
+- **Create** de um novo com ID diferente
+
+### Solução: Usar `uuidv5` para gerar UUID determinístico
+
+```hcl
+# ❌ ERRADO - UUID aleatório a cada execução = destroy/recreate
+resource "azurerm_role_assignment" "managed_identity_sender" {
+  scope                = azurerm_servicebus_namespace.main.id
+  role_definition_name = "Azure Service Bus Data Sender"
+  principal_id         = var.managed_identity_id
+  # Sem 'name' = Azure gera UUID aleatório!
+}
+
+# ✅ CORRETO - UUID determinístico = estabilidade
+resource "azurerm_role_assignment" "managed_identity_sender" {
+  count                = var.managed_identity_id != null ? 1 : 0
+  name                 = uuidv5("dns", "${azurerm_servicebus_namespace.main.id}-${var.managed_identity_id}-sender")
+  scope                = azurerm_servicebus_namespace.main.id
+  role_definition_name = "Azure Service Bus Data Sender"
+  principal_id         = var.managed_identity_id
+}
+```
+
+### Como funciona o `uuidv5`:
+
+| Parâmetro | Descrição |
+|-----------|------------|
+| Namespace | `"dns"`, `"url"`, `"oid"`, `"x500"` ou UUID customizado |
+| Nome | String que identifica o recurso uniquely |
+
+```hcl
+# Sempre gera o MESMO UUID para a mesma combinação de inputs
+uuidv5("dns", "${scope_id}-${principal_id}-${role_suffix}")
+
+# Exemplo de output:
+# "a1b2c3d4-e5f6-5a7b-8c9d-0e1f2a3b4c5d"
+```
+
+### Padrão para todos os Role Assignments:
+
+| Módulo | Role Assignment | UUID baseado em |
+|--------|-----------------|------------------|
+| Key Vault | `current_admin` | `keyvault_id + object_id + admin` |
+| Key Vault | `managed_identity_secrets_user` | `keyvault_id + managed_id + secrets-user` |
+| Storage | `managed_identity_blob_contributor` | `storage_id + managed_id + blob-contributor` |
+| Service Bus | `managed_identity_sender` | `servicebus_id + managed_id + sender` |
+| Service Bus | `managed_identity_receiver` | `servicebus_id + managed_id + receiver` |
+| Main | `sql_key_vault_access` | `keyvault_id + sql_id + secrets-officer` |
+
+---
+
+## Container Apps - Evitar Recriação com lifecycle
+
+### Problema: Container Apps sendo destruído e recriado
+
+O `workload_profile` block pode causar recriação desnecessária do Container Apps Environment.
+
+### Solução: Usar `dynamic` block + `lifecycle ignore_changes`
+
+```hcl
+resource "azurerm_container_app_environment" "main" {
+  name                           = var.name
+  location                       = var.location
+  resource_group_name            = var.resource_group_name
+  log_analytics_workspace_id     = var.log_analytics_workspace_id
+  infrastructure_subnet_id       = var.infrastructure_subnet_id
+  internal_load_balancer_enabled = var.infrastructure_subnet_id != null ? var.internal_load_balancer_enabled : false
+
+  # Workload profile só quando usando VNet
+  dynamic "workload_profile" {
+    for_each = var.infrastructure_subnet_id != null ? [1] : []
+    content {
+      name                  = "Consumption"
+      workload_profile_type = "Consumption"
+    }
+  }
+
+  tags = var.tags
+
+  # Evitar recriação desnecessária
+  lifecycle {
+    ignore_changes = [
+      workload_profile
+    ]
+  }
 }
 ```
 

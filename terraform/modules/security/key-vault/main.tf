@@ -14,7 +14,9 @@ resource "azurerm_key_vault" "main" {
 }
 
 # RBAC: Grant current service principal Key Vault Administrator role
+# Using a deterministic name to prevent recreation on each apply
 resource "azurerm_role_assignment" "current_admin" {
+  name                 = uuidv5("dns", "${azurerm_key_vault.main.id}-${data.azurerm_client_config.current.object_id}-admin")
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Administrator"
   principal_id         = data.azurerm_client_config.current.object_id
@@ -24,11 +26,17 @@ resource "azurerm_role_assignment" "current_admin" {
 resource "time_sleep" "wait_for_rbac" {
   depends_on      = [azurerm_role_assignment.current_admin]
   create_duration = "120s"
+
+  # Only recreate if the role assignment is recreated
+  triggers = {
+    role_assignment_id = azurerm_role_assignment.current_admin.id
+  }
 }
 
 # RBAC: Grant managed identity Key Vault Secrets User role (only if managed_identity_id is provided)
 resource "azurerm_role_assignment" "managed_identity_secrets_user" {
   count                = var.managed_identity_id != null ? 1 : 0
+  name                 = uuidv5("dns", "${azurerm_key_vault.main.id}-${var.managed_identity_id}-secrets-user")
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = var.managed_identity_id

@@ -35,6 +35,7 @@ resource "azurerm_storage_account_network_rules" "main" {
 # RBAC: Grant managed identity Storage Blob Data Contributor role (only if managed_identity_id is provided)
 resource "azurerm_role_assignment" "managed_identity_blob_contributor" {
   count                = var.managed_identity_id != null ? 1 : 0
+  name                 = uuidv5("dns", "${azurerm_storage_account.main.id}-${var.managed_identity_id}-blob-contributor")
   scope                = azurerm_storage_account.main.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = var.managed_identity_id
