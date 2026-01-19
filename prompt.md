@@ -389,39 +389,6 @@ resource "azurerm_container_app_environment" "main" {
 
 **Nota:** A subnet para Container Apps deve ter delegação para `Microsoft.App/environments` e tamanho mínimo de `/27`.
 
-### Container Apps - Subnet DEVE ter Sufixo Único
-
-**⚠️ IMPORTANTE:** A subnet do Container Apps DEVE incluir o mesmo sufixo aleatório do Container Apps Environment para evitar conflitos de reuso.
-
-```hcl
-# ❌ ERRADO - Subnet sem sufixo único
-# Erro: "ManagedEnvironmentSubnetInUse: The subnet is already used by environment"
-output "subnet_container_apps" {
-  value = "snet-ca-${local.base_name_pattern}"  # snet-ca-test-eus2 (SEM sufixo)
-}
-
-output "container_apps_environment" {
-  value = "cae-${local.base_name_pattern_unique}"  # cae-test-eus2-a1b2 (COM sufixo)
-}
-# Problema: Novo deploy gera novo sufixo no CAE, mas tenta usar mesma subnet!
-
-# ✅ CORRETO - Subnet COM sufixo único (igual ao CAE)
-output "subnet_container_apps" {
-  value = "snet-ca-${local.base_name_pattern_unique}"  # snet-ca-test-eus2-a1b2
-}
-
-output "container_apps_environment" {
-  value = "cae-${local.base_name_pattern_unique}"  # cae-test-eus2-a1b2
-}
-# Agora ambos compartilham o mesmo sufixo!
-```
-
-**Por que isso é necessário?**
-- Container Apps Environment "reserva" a subnet delegada
-- Se o CAE tem sufixo único mas a subnet não, um novo deploy (com novo sufixo) tentará criar novo CAE na mesma subnet
-- Azure retorna erro `ManagedEnvironmentSubnetInUse`
-- Solução: Subnet e CAE devem ter o MESMO sufixo aleatório
-
 ### Key Vault - enable_rbac_authorization OBRIGATÓRIO
 
 **⚠️ IMPORTANTE:** O atributo `enable_rbac_authorization = true` é **OBRIGATÓRIO** no Key Vault para que o RBAC funcione corretamente.
@@ -873,9 +840,6 @@ Formato: <prefix>-<name>-<location_abbr>[-<random_suffix>]
 | SQL Server | `sql-<name>-<loc>-<suffix>` | `sql-test-eus2-a1b2` |
 | Service Bus | `sb-<name>-<loc>-<suffix>` | `sb-test-eus2-a1b2` |
 | Container Apps Env | `cae-<name>-<loc>-<suffix>` | `cae-test-eus2-a1b2` |
-| Container Apps Subnet | `snet-ca-<name>-<loc>-<suffix>` | `snet-ca-test-eus2-a1b2` |
-
-> **⚠️ IMPORTANTE:** A subnet do Container Apps DEVE ter o mesmo sufixo do Container Apps Environment para evitar erro `ManagedEnvironmentSubnetInUse`.
 
 ### Recursos SEM sufixo (nomes dentro do resource group):
 
@@ -886,6 +850,7 @@ Formato: <prefix>-<name>-<location_abbr>[-<random_suffix>]
 | Managed Identity | `id-<name>-<loc>` | `id-test-eus2` |
 | SQL Database | `sqldb-<name>-<loc>` | `sqldb-test-eus2` |
 | Log Analytics | `log-<name>-<loc>` | `log-test-eus2` |
+| Container Apps Subnet | `snet-ca-<name>-<loc>` | `snet-ca-test-eus2` |
 
 ### Implementação no Módulo Naming:
 

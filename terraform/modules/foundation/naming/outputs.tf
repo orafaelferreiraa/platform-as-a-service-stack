@@ -21,8 +21,8 @@ output "subnet_default" {
 }
 
 output "subnet_container_apps" {
-  description = "Container Apps subnet name (unique suffix to match Container Apps Environment)"
-  value       = "snet-ca-${local.base_name_pattern_unique}"
+  description = "Container Apps subnet name"
+  value       = "snet-ca-${local.base_name_pattern}"
 }
 
 output "nsg" {
