@@ -26,8 +26,9 @@ resource "time_sleep" "wait_for_rbac" {
   create_duration = "120s"
 }
 
-# RBAC: Grant managed identity Key Vault Secrets User role
+# RBAC: Grant managed identity Key Vault Secrets User role (only if managed_identity_id is provided)
 resource "azurerm_role_assignment" "managed_identity_secrets_user" {
+  count                = var.managed_identity_id != null ? 1 : 0
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = var.managed_identity_id

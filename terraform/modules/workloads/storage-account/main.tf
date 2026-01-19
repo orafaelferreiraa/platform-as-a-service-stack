@@ -32,8 +32,9 @@ resource "azurerm_storage_account_network_rules" "main" {
   virtual_network_subnet_ids = var.vnet_subnet_ids
 }
 
-# RBAC: Grant managed identity Storage Blob Data Contributor role
+# RBAC: Grant managed identity Storage Blob Data Contributor role (only if managed_identity_id is provided)
 resource "azurerm_role_assignment" "managed_identity_blob_contributor" {
+  count                = var.managed_identity_id != null ? 1 : 0
   scope                = azurerm_storage_account.main.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = var.managed_identity_id
@@ -42,7 +43,7 @@ resource "azurerm_role_assignment" "managed_identity_blob_contributor" {
 # Create default containers
 # Note: When shared_access_key_enabled = false, containers must be created
 # after the storage account is fully provisioned and RBAC is configured.
-# Using depends_on to ensure proper ordering.
+# Using depends_on to ensure proper ordering when managed identity is used.
 resource "azurerm_storage_container" "data" {
   name                  = "data"
   storage_account_id    = azurerm_storage_account.main.id
