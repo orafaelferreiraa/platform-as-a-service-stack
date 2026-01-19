@@ -10,17 +10,17 @@ output "resource_group_id" {
 
 output "managed_identity_id" {
   description = "ID of the managed identity"
-  value       = module.managed_identity.id
+  value       = var.enable_managed_identity ? module.managed_identity[0].id : null
 }
 
 output "managed_identity_principal_id" {
   description = "Principal ID of the managed identity"
-  value       = module.managed_identity.principal_id
+  value       = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
 }
 
 output "managed_identity_client_id" {
   description = "Client ID of the managed identity"
-  value       = module.managed_identity.client_id
+  value       = var.enable_managed_identity ? module.managed_identity[0].client_id : null
 }
 
 # VNet outputs
