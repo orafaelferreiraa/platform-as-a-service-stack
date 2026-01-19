@@ -1,10 +1,16 @@
 # Random suffix for globally unique resource names
+# Uses keepers to ensure the suffix only changes when the project name changes
 resource "random_string" "suffix" {
   length  = 4
   lower   = true
   upper   = false
   numeric = true
   special = false
+
+  keepers = {
+    # Suffix only regenerates if the project name changes
+    name = var.name
+  }
 }
 
 locals {

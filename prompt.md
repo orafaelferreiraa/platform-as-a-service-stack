@@ -856,12 +856,18 @@ Formato: <prefix>-<name>-<location_abbr>[-<random_suffix>]
 
 ```hcl
 # Random suffix para nomes únicos globalmente
+# IMPORTANTE: Usar keepers para manter o sufixo consistente entre deploys
 resource "random_string" "suffix" {
   length  = 4
   lower   = true
   upper   = false
   numeric = true
   special = false
+
+  keepers = {
+    # Sufixo só muda se o nome do projeto mudar
+    name = var.name
+  }
 }
 
 locals {
@@ -888,6 +894,10 @@ output "resource_group" {
   value = "rg-${local.base_name_pattern}"  # rg-test-eus2 (sem sufixo)
 }
 ```
+
+**⚠️ CRÍTICO - random_string com keepers:**
+- SEM `keepers`: O sufixo muda a cada deploy, causando **destruição e recriação** de todos os recursos!
+- COM `keepers`: O sufixo permanece consistente enquanto o `name` não mudar
 
 **Por que usar sufixo aleatório?**
 - Recursos como Key Vault, Storage Account e SQL Server têm nomes **globalmente únicos**
