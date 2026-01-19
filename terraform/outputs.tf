@@ -80,17 +80,6 @@ output "event_grid_domain_id" {
   value       = var.enable_event_grid ? module.event_grid[0].domain_id : null
 }
 
-# Redis outputs
-output "redis_cache_id" {
-  description = "ID of the Redis cache"
-  value       = var.enable_redis ? module.redis_cache[0].id : null
-}
-
-output "redis_cache_hostname" {
-  description = "Hostname of the Redis cache"
-  value       = var.enable_redis ? module.redis_cache[0].hostname : null
-}
-
 # SQL outputs
 output "sql_server_id" {
   description = "ID of the SQL server"

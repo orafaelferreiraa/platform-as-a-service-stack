@@ -61,12 +61,6 @@ variable "enable_sql" {
   default     = true
 }
 
-variable "enable_redis" {
-  description = "Enable Redis Cache"
-  type        = bool
-  default     = true
-}
-
 variable "enable_container_apps" {
   description = "Enable Container Apps Environment"
   type        = bool

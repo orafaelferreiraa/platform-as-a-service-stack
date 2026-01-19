@@ -84,11 +84,6 @@ output "sql_database" {
   value       = "sqldb-${local.base_name_pattern}"
 }
 
-output "redis_cache" {
-  description = "Redis Cache name (globally unique with suffix)"
-  value       = "redis-${local.base_name_pattern_unique}"
-}
-
 # Workloads - Observability
 output "log_analytics_workspace" {
   description = "Log Analytics Workspace name"

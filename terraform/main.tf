@@ -105,19 +105,6 @@ module "event_grid" {
   log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
-# Workloads: Redis Cache (optional)
-module "redis_cache" {
-  count                      = var.enable_redis ? 1 : 0
-  source                     = "./modules/workloads/redis-cache"
-  name                       = module.naming.redis_cache
-  location                   = var.location
-  resource_group_name        = module.resource_group.name
-  subnet_id                  = var.enable_vnet ? module.vnet_spoke[0].default_subnet_id : null
-  tags                       = local.base_tags
-  enable_observability       = var.enable_observability
-  log_analytics_workspace_id = var.enable_observability ? module.observability[0].log_analytics_id : null
-}
-
 # Workloads: SQL Server & Database (optional)
 module "sql" {
   count                      = var.enable_sql ? 1 : 0

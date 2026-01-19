@@ -86,11 +86,6 @@ variable "enable_sql" {
   default = true
 }
 
-variable "enable_redis" {
-  type    = bool
-  default = true
-}
-
 variable "enable_container_apps" {
   type    = bool
   default = true
@@ -123,9 +118,6 @@ variable "enable_container_apps" {
 │                                                                              │
 │  ⚡ Event Grid                                                               │
 │      └── Usa: Managed Identity (RBAC), Service Bus (subscriptions) [opcional]│
-│                                                                              │
-│  🔴 Redis Cache                                                              │
-│      └── Usa: VNet (Premium SKU only) [opcional]                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -163,7 +155,6 @@ variable "enable_container_apps" {
 | Storage Account | Resource Group | Managed Identity, VNet | `enable_storage = true` |
 | Service Bus | Resource Group | Managed Identity | `enable_service_bus = true` |
 | Event Grid | Resource Group | Managed Identity, Service Bus | `enable_event_grid = true` |
-| Redis Cache | Resource Group | VNet (Premium) | `enable_redis = true` |
 | **SQL** | Resource Group, Managed Identity | VNet | `enable_sql = true` |
 | **Key Vault** | Resource Group, SQL* | Managed Identity | `enable_key_vault = true` |
 | **Container Apps** | Resource Group, **Observability** | VNet | `enable_container_apps = true AND enable_observability = true` |
@@ -204,7 +195,6 @@ enable_storage        = false
 enable_service_bus    = false
 enable_event_grid     = false
 enable_sql            = false
-enable_redis          = false
 enable_container_apps = false
 ```
 
@@ -218,7 +208,6 @@ enable_storage        = false
 enable_service_bus    = true
 enable_event_grid     = true
 enable_sql            = false
-enable_redis          = false
 enable_container_apps = false
 ```
 
@@ -232,7 +221,6 @@ enable_storage        = false
 enable_service_bus    = false
 enable_event_grid     = false
 enable_sql            = true   # Requer Key Vault para senha
-enable_redis          = false
 enable_container_apps = false
 ```
 
@@ -246,7 +234,6 @@ enable_storage        = false
 enable_service_bus    = false
 enable_event_grid     = false
 enable_sql            = false
-enable_redis          = false
 enable_container_apps = true
 ```
 
@@ -264,7 +251,6 @@ Região padrão: eastus2 (hardcoded, não passar na pipeline)
 
 | ❌ Deprecated | ✅ Usar em vez disso |
 |--------------|---------------------|
-| `enable_authentication` (Redis) | Removido - Usar `active_directory_authentication_enabled` |
 | `enable_https_traffic_only` (Storage) | `https_traffic_only_enabled` |
 | `zone_redundant` (Service Bus) | `premium_messaging_partitions` |
 | `enable_partitioning` (Service Bus Queue/Topic) | Removido - Controlado no namespace |
@@ -273,7 +259,6 @@ Região padrão: eastus2 (hardcoded, não passar na pipeline)
 ### Recursos NÃO SUPORTADOS no Provider 4.x:
 
 - `azurerm_servicebus_namespace_network_rule_set` - Não existe
-- `redis_persistence` block no `azurerm_redis_cache` - Não suportado
 
 ### SQL Server Diagnostic Settings - Categorias NÃO SUPORTADAS:
 
@@ -886,7 +871,6 @@ Formato: <prefix>-<name>-<location_abbr>[-<random_suffix>]
 | Key Vault | `kv<name><loc><suffix>` | `kvtesteus2a1b2` |
 | Storage Account | `st<name><loc><suffix>` | `sttesteus2a1b2` |
 | SQL Server | `sql-<name>-<loc>-<suffix>` | `sql-test-eus2-a1b2` |
-| Redis Cache | `redis-<name>-<loc>-<suffix>` | `redis-test-eus2-a1b2` |
 | Service Bus | `sb-<name>-<loc>-<suffix>` | `sb-test-eus2-a1b2` |
 | Container Apps Env | `cae-<name>-<loc>-<suffix>` | `cae-test-eus2-a1b2` |
 | Container Apps Subnet | `snet-ca-<name>-<loc>-<suffix>` | `snet-ca-test-eus2-a1b2` |
@@ -1025,7 +1009,6 @@ terraform/
         ├── container-apps/
         ├── event-grid/
         ├── observability/
-        ├── redis-cache/
         ├── service-bus/
         ├── sql/
         └── storage-account/
