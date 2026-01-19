@@ -43,12 +43,13 @@ module "managed_identity" {
 
 # Networking: VNet Spoke (optional)
 module "vnet_spoke" {
-  count               = var.enable_vnet ? 1 : 0
-  source              = "./modules/networking/vnet-spoke"
-  name                = module.naming.vnet
-  location            = var.location
-  resource_group_name = module.resource_group.name
-  tags                = local.base_tags
+  count                      = var.enable_vnet ? 1 : 0
+  source                     = "./modules/networking/vnet-spoke"
+  name                       = module.naming.vnet
+  location                   = var.location
+  resource_group_name        = module.resource_group.name
+  container_apps_subnet_name = module.naming.subnet_container_apps
+  tags                       = local.base_tags
 }
 
 # Workloads: Observability (optional)

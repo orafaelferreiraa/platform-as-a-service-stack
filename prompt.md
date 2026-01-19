@@ -264,7 +264,6 @@ Região padrão: eastus2 (hardcoded, não passar na pipeline)
 
 | ❌ Deprecated | ✅ Usar em vez disso |
 |--------------|---------------------|
-| `enable_rbac_authorization` (Key Vault) | Removido - RBAC é padrão |
 | `enable_authentication` (Redis) | Removido - Usar `active_directory_authentication_enabled` |
 | `enable_https_traffic_only` (Storage) | `https_traffic_only_enabled` |
 | `zone_redundant` (Service Bus) | `premium_messaging_partitions` |
@@ -405,6 +404,72 @@ resource "azurerm_container_app_environment" "main" {
 
 **Nota:** A subnet para Container Apps deve ter delegação para `Microsoft.App/environments` e tamanho mínimo de `/27`.
 
+### Container Apps - Subnet DEVE ter Sufixo Único
+
+**⚠️ IMPORTANTE:** A subnet do Container Apps DEVE incluir o mesmo sufixo aleatório do Container Apps Environment para evitar conflitos de reuso.
+
+```hcl
+# ❌ ERRADO - Subnet sem sufixo único
+# Erro: "ManagedEnvironmentSubnetInUse: The subnet is already used by environment"
+output "subnet_container_apps" {
+  value = "snet-ca-${local.base_name_pattern}"  # snet-ca-test-eus2 (SEM sufixo)
+}
+
+output "container_apps_environment" {
+  value = "cae-${local.base_name_pattern_unique}"  # cae-test-eus2-a1b2 (COM sufixo)
+}
+# Problema: Novo deploy gera novo sufixo no CAE, mas tenta usar mesma subnet!
+
+# ✅ CORRETO - Subnet COM sufixo único (igual ao CAE)
+output "subnet_container_apps" {
+  value = "snet-ca-${local.base_name_pattern_unique}"  # snet-ca-test-eus2-a1b2
+}
+
+output "container_apps_environment" {
+  value = "cae-${local.base_name_pattern_unique}"  # cae-test-eus2-a1b2
+}
+# Agora ambos compartilham o mesmo sufixo!
+```
+
+**Por que isso é necessário?**
+- Container Apps Environment "reserva" a subnet delegada
+- Se o CAE tem sufixo único mas a subnet não, um novo deploy (com novo sufixo) tentará criar novo CAE na mesma subnet
+- Azure retorna erro `ManagedEnvironmentSubnetInUse`
+- Solução: Subnet e CAE devem ter o MESMO sufixo aleatório
+
+### Key Vault - enable_rbac_authorization OBRIGATÓRIO
+
+**⚠️ IMPORTANTE:** O atributo `enable_rbac_authorization = true` é **OBRIGATÓRIO** no Key Vault para que o RBAC funcione corretamente.
+
+```hcl
+# ❌ ERRADO - Sem enable_rbac_authorization
+# Erro: "does not have secrets get permission on key vault"
+resource "azurerm_key_vault" "main" {
+  name                       = var.name
+  location                   = var.location
+  resource_group_name        = var.resource_group_name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  # Faltando enable_rbac_authorization!
+}
+
+# ✅ CORRETO - Com enable_rbac_authorization = true
+resource "azurerm_key_vault" "main" {
+  name                       = var.name
+  location                   = var.location
+  resource_group_name        = var.resource_group_name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  soft_delete_retention_days = 7
+  purge_protection_enabled   = false
+  enable_rbac_authorization  = true  # OBRIGATÓRIO!
+
+  tags = var.tags
+}
+```
+
+**Nota:** Sem este atributo, mesmo com `azurerm_role_assignment` configurado, o Key Vault não reconhece as permissões RBAC.
+
 ### Key Vault - RBAC Propagation Delay
 
 **⚠️ IMPORTANTE:** Azure RBAC leva até 5 minutos para propagar. Ao criar secrets no Key Vault logo após atribuir RBAC, pode ocorrer erro 403 Forbidden.
@@ -430,10 +495,10 @@ resource "azurerm_role_assignment" "current_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
-# Aguarda propagação do RBAC (90 segundos para maior confiabilidade)
+# Aguarda propagação do RBAC (120 segundos para maior confiabilidade)
 resource "time_sleep" "wait_for_rbac" {
   depends_on      = [azurerm_role_assignment.current_admin]
-  create_duration = "90s"
+  create_duration = "120s"
 }
 
 resource "azurerm_key_vault_secret" "secrets" {
@@ -824,6 +889,9 @@ Formato: <prefix>-<name>-<location_abbr>[-<random_suffix>]
 | Redis Cache | `redis-<name>-<loc>-<suffix>` | `redis-test-eus2-a1b2` |
 | Service Bus | `sb-<name>-<loc>-<suffix>` | `sb-test-eus2-a1b2` |
 | Container Apps Env | `cae-<name>-<loc>-<suffix>` | `cae-test-eus2-a1b2` |
+| Container Apps Subnet | `snet-ca-<name>-<loc>-<suffix>` | `snet-ca-test-eus2-a1b2` |
+
+> **⚠️ IMPORTANTE:** A subnet do Container Apps DEVE ter o mesmo sufixo do Container Apps Environment para evitar erro `ManagedEnvironmentSubnetInUse`.
 
 ### Recursos SEM sufixo (nomes dentro do resource group):
 

@@ -31,6 +31,12 @@ variable "container_apps_subnet_prefix" {
   default     = "10.0.2.0/23"
 }
 
+variable "container_apps_subnet_name" {
+  description = "Name for the Container Apps subnet (should include unique suffix)"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

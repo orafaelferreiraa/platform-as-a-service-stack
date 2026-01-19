@@ -8,6 +8,7 @@ resource "azurerm_key_vault" "main" {
   sku_name                   = "standard"
   soft_delete_retention_days = 7
   purge_protection_enabled   = false
+  enable_rbac_authorization  = true
 
   tags = var.tags
 }
@@ -22,7 +23,7 @@ resource "azurerm_role_assignment" "current_admin" {
 # Wait for RBAC propagation (Azure RBAC can take up to 5 minutes to propagate)
 resource "time_sleep" "wait_for_rbac" {
   depends_on      = [azurerm_role_assignment.current_admin]
-  create_duration = "90s"
+  create_duration = "120s"
 }
 
 # RBAC: Grant managed identity Key Vault Secrets User role

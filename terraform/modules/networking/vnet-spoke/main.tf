@@ -1,6 +1,6 @@
 locals {
   subnet_default_name        = "snet-default-${var.name}"
-  subnet_container_apps_name = "snet-ca-${var.name}"
+  subnet_container_apps_name = coalesce(var.container_apps_subnet_name, "snet-ca-${var.name}")
   nsg_name                   = "nsg-${var.name}"
 }
 
