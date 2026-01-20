@@ -190,7 +190,7 @@ jobs:
 
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
-        run: terraform destroy -input=false -lock=false -auto-approve
+        run: terraform destroy -input=false -lock=false -refresh=false -auto-approve
 
       - name: Upload Plan Artifact
         if: inputs.action == 'plan'
