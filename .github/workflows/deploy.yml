@@ -98,6 +98,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
       - name: Display Configuration
         run: |
           echo "## Platform Configuration" >> $GITHUB_STEP_SUMMARY
@@ -166,6 +171,14 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
+
+      - name: Break State Lease (if exists)
+        run: |
+          az storage blob lease break \
+            --blob-name "${{ env.TF_VAR_name }}.terraform.tfstate" \
+            --container-name "tfstate" \
+            --account-name "storagepaas" \
+            --auth-mode login || true
 
       - name: Terraform Plan
         if: inputs.action == 'plan' || inputs.action == 'apply'
