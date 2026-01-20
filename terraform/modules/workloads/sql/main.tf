@@ -1,5 +1,3 @@
-data "azurerm_client_config" "current" {}
-
 # Generate random password for SQL admin
 resource "random_password" "sql_admin" {
   length           = 16

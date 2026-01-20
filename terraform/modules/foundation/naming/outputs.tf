@@ -15,19 +15,9 @@ output "vnet" {
   value       = "vnet-${local.base_name_pattern}"
 }
 
-output "subnet_default" {
-  description = "Default subnet name"
-  value       = "snet-default-${local.base_name_pattern}"
-}
-
 output "subnet_container_apps" {
   description = "Container Apps subnet name"
   value       = "snet-ca-${local.base_name_pattern}"
-}
-
-output "nsg" {
-  description = "Network security group name"
-  value       = "nsg-${local.base_name_pattern}"
 }
 
 # Security
@@ -48,29 +38,9 @@ output "service_bus" {
   value       = "sb-${local.base_name_pattern_unique}"
 }
 
-output "service_bus_queue" {
-  description = "Service Bus queue name"
-  value       = "sbq-events"
-}
-
-output "service_bus_topic" {
-  description = "Service Bus topic name"
-  value       = "sbt-events"
-}
-
 output "event_grid_domain" {
   description = "Event Grid domain name"
   value       = "evgd-${local.base_name_pattern}"
-}
-
-output "event_grid_topic" {
-  description = "Event Grid topic name"
-  value       = "evgt-${local.base_name_pattern}"
-}
-
-output "event_grid_subscription" {
-  description = "Event Grid subscription name"
-  value       = "evgs-${local.base_name_pattern}"
 }
 
 # Workloads - Data
@@ -99,10 +69,4 @@ output "application_insights" {
 output "container_apps_environment" {
   description = "Container Apps Environment name (globally unique with suffix)"
   value       = "cae-${local.base_name_pattern_unique}"
-}
-
-# Deterministic suffix for reference
-output "suffix" {
-  description = "Deterministic suffix used for globally unique names (based on MD5 hash of name)"
-  value       = local.suffix
 }
