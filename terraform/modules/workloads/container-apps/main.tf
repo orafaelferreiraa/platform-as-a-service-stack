@@ -22,7 +22,8 @@ resource "azurerm_container_app_environment" "main" {
     ignore_changes = [
       workload_profile,
       infrastructure_subnet_id,
-      internal_load_balancer_enabled
+      internal_load_balancer_enabled,
+      infrastructure_resource_group_name
     ]
   }
 }

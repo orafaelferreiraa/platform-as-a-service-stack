@@ -56,6 +56,10 @@ resource "azurerm_mssql_database" "main" {
   transparent_data_encryption_enabled = true
 
   tags = var.tags
+
+  lifecycle {
+    ignore_changes = [geo_backup_enabled]
+  }
 }
 
 # Note: SQL Server-level diagnostic settings are not supported.
@@ -107,5 +111,9 @@ resource "azurerm_monitor_diagnostic_setting" "database" {
 
   enabled_metric {
     category = "AllMetrics"
+  }
+
+  lifecycle {
+    ignore_changes = [enabled_metric]
   }
 }
