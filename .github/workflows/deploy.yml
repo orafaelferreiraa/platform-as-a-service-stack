@@ -200,6 +200,45 @@ jobs:
           HAS_KEY_VAULT=$(echo "$STATE_RESOURCES" | grep -c "module.key_vault" || echo "0")
           HAS_CONTAINER_APPS=$(echo "$STATE_RESOURCES" | grep -c "module.container_apps" || echo "0")
           
+          # Force enable flags for resources that already exist in state
+          # This prevents Terraform from seeing them as "not in configuration"
+          if [ "$HAS_MANAGED_IDENTITY" -gt "0" ]; then
+            echo "TF_VAR_enable_managed_identity=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_managed_identity=true (resource exists in state)"
+          fi
+          if [ "$HAS_VNET" -gt "0" ]; then
+            echo "TF_VAR_enable_vnet=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_vnet=true (resource exists in state)"
+          fi
+          if [ "$HAS_OBSERVABILITY" -gt "0" ]; then
+            echo "TF_VAR_enable_observability=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_observability=true (resource exists in state)"
+          fi
+          if [ "$HAS_STORAGE" -gt "0" ]; then
+            echo "TF_VAR_enable_storage=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_storage=true (resource exists in state)"
+          fi
+          if [ "$HAS_SERVICE_BUS" -gt "0" ]; then
+            echo "TF_VAR_enable_service_bus=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_service_bus=true (resource exists in state)"
+          fi
+          if [ "$HAS_EVENT_GRID" -gt "0" ]; then
+            echo "TF_VAR_enable_event_grid=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_event_grid=true (resource exists in state)"
+          fi
+          if [ "$HAS_SQL" -gt "0" ]; then
+            echo "TF_VAR_enable_sql=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_sql=true (resource exists in state)"
+          fi
+          if [ "$HAS_KEY_VAULT" -gt "0" ]; then
+            echo "TF_VAR_enable_key_vault=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_key_vault=true (resource exists in state)"
+          fi
+          if [ "$HAS_CONTAINER_APPS" -gt "0" ]; then
+            echo "TF_VAR_enable_container_apps=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_container_apps=true (resource exists in state)"
+          fi
+          
           # Include resources that are EITHER enabled OR already exist in state
           # This prevents destruction of existing resources
           if [ "${{ inputs.enable_managed_identity }}" == "true" ] || [ "$HAS_MANAGED_IDENTITY" -gt "0" ]; then 
