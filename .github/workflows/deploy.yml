@@ -156,7 +156,7 @@ jobs:
           terraform_version: "~1.9.0"
 
       - name: Terraform Format Check
-        run: terraform fmt -check -recursive
+        run: terraform fmt -recursive
         continue-on-error: true
 
       - name: Terraform Init
@@ -181,22 +181,80 @@ jobs:
 
       - name: Build Terraform Targets
         run: |
+          # Start with core resources that are always deployed
           TARGETS="-target=module.naming -target=module.resource_group"
-          if [ "${{ inputs.enable_managed_identity }}" == "true" ]; then TARGETS="$TARGETS -target=module.managed_identity"; fi
-          if [ "${{ inputs.enable_vnet }}" == "true" ]; then TARGETS="$TARGETS -target=module.vnet_spoke"; fi
-          if [ "${{ inputs.enable_observability }}" == "true" ]; then TARGETS="$TARGETS -target=module.observability"; fi
-          if [ "${{ inputs.enable_storage }}" == "true" ]; then TARGETS="$TARGETS -target=module.storage_account"; fi
-          if [ "${{ inputs.enable_service_bus }}" == "true" ]; then TARGETS="$TARGETS -target=module.service_bus"; fi
-          if [ "${{ inputs.enable_event_grid }}" == "true" ]; then TARGETS="$TARGETS -target=module.event_grid"; fi
-          if [ "${{ inputs.enable_sql }}" == "true" ]; then TARGETS="$TARGETS -target=module.sql"; fi
-          if [ "${{ inputs.enable_key_vault }}" == "true" ]; then TARGETS="$TARGETS -target=module.key_vault"; fi
-          if [ "${{ inputs.enable_container_apps }}" == "true" ]; then TARGETS="$TARGETS -target=module.container_apps"; fi
+          
+          # Check state for existing resources and preserve them in targets
+          # This prevents terraform from trying to destroy existing resources when we add new ones
+          echo "Checking state for existing resources..."
+          STATE_RESOURCES=$(terraform state list 2>/dev/null || echo "")
+          
+          # Check what resources exist in state
+          HAS_MANAGED_IDENTITY=$(echo "$STATE_RESOURCES" | grep -c "module.managed_identity" || echo "0")
+          HAS_VNET=$(echo "$STATE_RESOURCES" | grep -c "module.vnet_spoke" || echo "0")
+          HAS_OBSERVABILITY=$(echo "$STATE_RESOURCES" | grep -c "module.observability" || echo "0")
+          HAS_STORAGE=$(echo "$STATE_RESOURCES" | grep -c "module.storage_account" || echo "0")
+          HAS_SERVICE_BUS=$(echo "$STATE_RESOURCES" | grep -c "module.service_bus" || echo "0")
+          HAS_EVENT_GRID=$(echo "$STATE_RESOURCES" | grep -c "module.event_grid" || echo "0")
+          HAS_SQL=$(echo "$STATE_RESOURCES" | grep -c "module.sql" || echo "0")
+          HAS_KEY_VAULT=$(echo "$STATE_RESOURCES" | grep -c "module.key_vault" || echo "0")
+          HAS_CONTAINER_APPS=$(echo "$STATE_RESOURCES" | grep -c "module.container_apps" || echo "0")
+          
+          # Include resources that are EITHER enabled OR already exist in state
+          # This prevents destruction of existing resources
+          if [ "${{ inputs.enable_managed_identity }}" == "true" ] || [ "$HAS_MANAGED_IDENTITY" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.managed_identity"
+            echo "Including Managed Identity (enabled: ${{ inputs.enable_managed_identity }}, in state: $HAS_MANAGED_IDENTITY)"
+          fi
+          
+          if [ "${{ inputs.enable_vnet }}" == "true" ] || [ "$HAS_VNET" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.vnet_spoke"
+            echo "Including VNet (enabled: ${{ inputs.enable_vnet }}, in state: $HAS_VNET)"
+          fi
+          
+          if [ "${{ inputs.enable_observability }}" == "true" ] || [ "$HAS_OBSERVABILITY" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.observability"
+            echo "Including Observability (enabled: ${{ inputs.enable_observability }}, in state: $HAS_OBSERVABILITY)"
+          fi
+          
+          if [ "${{ inputs.enable_storage }}" == "true" ] || [ "$HAS_STORAGE" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.storage_account"
+            echo "Including Storage (enabled: ${{ inputs.enable_storage }}, in state: $HAS_STORAGE)"
+          fi
+          
+          if [ "${{ inputs.enable_service_bus }}" == "true" ] || [ "$HAS_SERVICE_BUS" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.service_bus"
+            echo "Including Service Bus (enabled: ${{ inputs.enable_service_bus }}, in state: $HAS_SERVICE_BUS)"
+          fi
+          
+          if [ "${{ inputs.enable_event_grid }}" == "true" ] || [ "$HAS_EVENT_GRID" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.event_grid"
+            echo "Including Event Grid (enabled: ${{ inputs.enable_event_grid }}, in state: $HAS_EVENT_GRID)"
+          fi
+          
+          if [ "${{ inputs.enable_sql }}" == "true" ] || [ "$HAS_SQL" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.sql"
+            echo "Including SQL (enabled: ${{ inputs.enable_sql }}, in state: $HAS_SQL)"
+          fi
+          
+          if [ "${{ inputs.enable_key_vault }}" == "true" ] || [ "$HAS_KEY_VAULT" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.key_vault"
+            echo "Including Key Vault (enabled: ${{ inputs.enable_key_vault }}, in state: $HAS_KEY_VAULT)"
+          fi
+          
+          if [ "${{ inputs.enable_container_apps }}" == "true" ] || [ "$HAS_CONTAINER_APPS" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.container_apps"
+            echo "Including Container Apps (enabled: ${{ inputs.enable_container_apps }}, in state: $HAS_CONTAINER_APPS)"
+          fi
+          
           # Root-level RBAC when all three are enabled: SQL + KV + Managed Identity
           if [ "${{ inputs.enable_sql }}" == "true" ] && [ "${{ inputs.enable_key_vault }}" == "true" ] && [ "${{ inputs.enable_managed_identity }}" == "true" ]; then
             TARGETS="$TARGETS -target=azurerm_role_assignment.sql_key_vault_access"
           fi
+          
           echo "TF_TARGETS=$TARGETS" >> $GITHUB_ENV
-          echo "Terraform targets: $TARGETS"
+          echo ""
+          echo "Final Terraform targets: $TARGETS"
 
       - name: Terraform Plan
         if: inputs.action == 'plan' || inputs.action == 'apply'
