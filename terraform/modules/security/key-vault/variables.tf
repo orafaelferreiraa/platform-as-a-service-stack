@@ -26,6 +26,13 @@ variable "current_principal_id" {
 variable "managed_identity_id" {
   description = "Principal ID of the managed identity for RBAC"
   type        = string
+  default     = null
+}
+
+variable "enable_managed_identity_rbac" {
+  description = "Whether to create RBAC role assignments for managed identity"
+  type        = bool
+  default     = false
 }
 
 variable "secrets" {

@@ -26,8 +26,10 @@ Add the following secrets to your repository:
 2. Click **Run workflow**
 3. Fill in the platform name (lowercase alphanumeric only)
 4. Select resources to provision using feature flag checkboxes
-5. Choose action: `plan`, `apply`, or `destroy`
+5. Choose action: `plan` or `apply`
 6. Review the plan and approve
+
+> **Note**: Destroy is not available via workflow. To destroy resources, delete the Resource Group in Azure Portal and remove the state file from the storage account.
 
 #### Via Terraform CLI (Local Development)
 ```bash
@@ -216,7 +218,7 @@ enable_container_apps   = true
 ### Key Vault
 
 - **RBAC Authorization**: Always enabled (`enable_rbac_authorization = true`)
-- **RBAC Propagation**: Uses `time_sleep` (120s) to wait for RBAC propagation
+- **RBAC Propagation**: Uses `time_sleep` (180s) to wait for RBAC propagation
 - **No secret exposure**: Outputs only contain IDs and URIs, never secret values
 
 ### Container Apps

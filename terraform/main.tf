@@ -69,29 +69,31 @@ module "observability" {
 
 # Workloads: Storage Account (optional) - uses Managed Identity for RBAC if enabled
 module "storage_account" {
-  count                      = var.enable_storage ? 1 : 0
-  source                     = "./modules/workloads/storage-account"
-  name                       = module.naming.storage_account
-  location                   = var.location
-  resource_group_name        = module.resource_group.name
-  managed_identity_id        = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
-  vnet_subnet_ids            = var.enable_vnet ? [module.vnet_spoke[0].default_subnet_id] : []
-  tags                       = local.base_tags
-  enable_observability       = var.enable_observability
-  log_analytics_workspace_id = var.enable_observability ? module.observability[0].log_analytics_id : null
+  count                        = var.enable_storage ? 1 : 0
+  source                       = "./modules/workloads/storage-account"
+  name                         = module.naming.storage_account
+  location                     = var.location
+  resource_group_name          = module.resource_group.name
+  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  enable_managed_identity_rbac = var.enable_managed_identity
+  vnet_subnet_ids              = var.enable_vnet ? [module.vnet_spoke[0].default_subnet_id] : []
+  tags                         = local.base_tags
+  enable_observability         = var.enable_observability
+  log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
 # Workloads: Service Bus (optional) - uses Managed Identity for RBAC if enabled
 module "service_bus" {
-  count                      = var.enable_service_bus ? 1 : 0
-  source                     = "./modules/workloads/service-bus"
-  name                       = module.naming.service_bus
-  location                   = var.location
-  resource_group_name        = module.resource_group.name
-  managed_identity_id        = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
-  tags                       = local.base_tags
-  enable_observability       = var.enable_observability
-  log_analytics_workspace_id = var.enable_observability ? module.observability[0].log_analytics_id : null
+  count                        = var.enable_service_bus ? 1 : 0
+  source                       = "./modules/workloads/service-bus"
+  name                         = module.naming.service_bus
+  location                     = var.location
+  resource_group_name          = module.resource_group.name
+  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  enable_managed_identity_rbac = var.enable_managed_identity
+  tags                         = local.base_tags
+  enable_observability         = var.enable_observability
+  log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
 # Workloads: Event Grid (optional) - uses Managed Identity for RBAC if enabled
@@ -126,14 +128,15 @@ module "sql" {
 
 # Security: Key Vault (optional) - depends on SQL for password storage, uses Managed Identity for RBAC if enabled
 module "key_vault" {
-  count                = var.enable_key_vault ? 1 : 0
-  source               = "./modules/security/key-vault"
-  name                 = module.naming.key_vault
-  location             = var.location
-  resource_group_name  = module.resource_group.name
-  tenant_id            = data.azurerm_client_config.current.tenant_id
-  current_principal_id = data.azurerm_client_config.current.object_id
-  managed_identity_id  = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  count                        = var.enable_key_vault ? 1 : 0
+  source                       = "./modules/security/key-vault"
+  name                         = module.naming.key_vault
+  location                     = var.location
+  resource_group_name          = module.resource_group.name
+  tenant_id                    = data.azurerm_client_config.current.tenant_id
+  current_principal_id         = data.azurerm_client_config.current.object_id
+  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  enable_managed_identity_rbac = var.enable_managed_identity
   secrets = var.enable_sql ? {
     "sql-admin-password" = module.sql[0].admin_password
   } : {}

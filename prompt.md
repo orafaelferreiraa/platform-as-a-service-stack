@@ -458,10 +458,15 @@ resource "azurerm_role_assignment" "current_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
-# Aguarda propagação do RBAC (120 segundos para maior confiabilidade)
+# Aguarda propagação do RBAC (180 segundos para maior confiabilidade)
 resource "time_sleep" "wait_for_rbac" {
   depends_on      = [azurerm_role_assignment.current_admin]
-  create_duration = "120s"
+  create_duration = "180s"
+  
+  # Re-trigger sleep se o role assignment mudar
+  triggers = {
+    role_assignment_id = azurerm_role_assignment.current_admin.id
+  }
 }
 
 resource "azurerm_key_vault_secret" "secrets" {
@@ -638,6 +643,9 @@ inputs:
 - ❌ `environment`
 - ❌ `location` (usar default)
 - ❌ `sql_admin_login` / `sql_admin_object_id`
+- ❌ `destroy` action (causa problemas de RBAC - fazer via Azure Portal)
+
+> **Nota sobre Destroy**: A opção `destroy` foi removida do workflow porque causa problemas de permissão RBAC (role assignments são deletados antes dos secrets do Key Vault). Para destruir recursos, delete o Resource Group no Azure Portal e remova o state file do storage account.
 
 
 ## Deploy - Configuração Padrão
@@ -907,26 +915,33 @@ Quando um módulo é criado com `count`, seus outputs são indeterminados em tem
 ```hcl
 # No main.tf (módulo pai)
 module "event_grid" {
-  count                        = var.enable_event_grid ? 1 : 0
+  count                          = var.enable_event_grid ? 1 : 0
   enable_service_bus_integration = var.enable_service_bus  # ✅ Boolean
-  service_bus_topic_id         = var.enable_service_bus ? module.service_bus[0].topic_id : null
+  service_bus_topic_id           = var.enable_service_bus ? module.service_bus[0].topic_id : null
 }
 
-# No módulo event-grid/variables.tf
-variable "enable_service_bus_integration" {
-  type    = bool
-  default = false
+module "storage_account" {
+  count                        = var.enable_storage ? 1 : 0
+  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  enable_managed_identity_rbac = var.enable_managed_identity  # ✅ Boolean separado
 }
 
-variable "service_bus_topic_id" {
+# No módulo storage-account/variables.tf
+variable "managed_identity_id" {
   type    = string
   default = null
 }
 
-# No módulo event-grid/main.tf
-resource "azurerm_eventgrid_event_subscription" "service_bus" {
-  count = var.enable_service_bus_integration ? 1 : 0  # ✅ Usa boolean
-  service_bus_topic_endpoint_id = var.service_bus_topic_id
+variable "enable_managed_identity_rbac" {
+  description = "Whether to create RBAC role assignments for managed identity"
+  type        = bool
+  default     = false
+}
+
+# No módulo storage-account/main.tf
+resource "azurerm_role_assignment" "managed_identity_blob_contributor" {
+  count = var.enable_managed_identity_rbac ? 1 : 0  # ✅ Usa boolean, NÃO null check
+  # ...
 }
 ```
 

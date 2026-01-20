@@ -31,9 +31,9 @@ resource "time_sleep" "wait_for_rbac" {
   }
 }
 
-# RBAC: Grant managed identity Key Vault Secrets User role (only if managed_identity_id is provided)
+# RBAC: Grant managed identity Key Vault Secrets User role
 resource "azurerm_role_assignment" "managed_identity_secrets_user" {
-  count                = var.managed_identity_id != null ? 1 : 0
+  count                = var.enable_managed_identity_rbac ? 1 : 0
   name                 = uuidv5("dns", "${azurerm_key_vault.main.id}-${var.managed_identity_id}-secrets-user")
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets User"

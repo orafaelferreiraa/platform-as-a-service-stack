@@ -31,18 +31,18 @@ resource "azurerm_servicebus_subscription" "events" {
   max_delivery_count = 10
 }
 
-# RBAC: Grant managed identity Service Bus Data Sender role (only if managed_identity_id is provided)
+# RBAC: Grant managed identity Service Bus Data Sender role
 resource "azurerm_role_assignment" "managed_identity_sender" {
-  count                = var.managed_identity_id != null ? 1 : 0
+  count                = var.enable_managed_identity_rbac ? 1 : 0
   name                 = uuidv5("dns", "${azurerm_servicebus_namespace.main.id}-${var.managed_identity_id}-sender")
   scope                = azurerm_servicebus_namespace.main.id
   role_definition_name = "Azure Service Bus Data Sender"
   principal_id         = var.managed_identity_id
 }
 
-# RBAC: Grant managed identity Service Bus Data Receiver role (only if managed_identity_id is provided)
+# RBAC: Grant managed identity Service Bus Data Receiver role
 resource "azurerm_role_assignment" "managed_identity_receiver" {
-  count                = var.managed_identity_id != null ? 1 : 0
+  count                = var.enable_managed_identity_rbac ? 1 : 0
   name                 = uuidv5("dns", "${azurerm_servicebus_namespace.main.id}-${var.managed_identity_id}-receiver")
   scope                = azurerm_servicebus_namespace.main.id
   role_definition_name = "Azure Service Bus Data Receiver"
