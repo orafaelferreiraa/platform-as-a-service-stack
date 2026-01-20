@@ -179,9 +179,28 @@ jobs:
             --account-name "storagepaas" \
             --auth-mode login || true
 
+      - name: Build Terraform Targets
+        run: |
+          TARGETS="-target=module.naming -target=module.resource_group"
+          if [ "${{ inputs.enable_managed_identity }}" == "true" ]; then TARGETS="$TARGETS -target=module.managed_identity"; fi
+          if [ "${{ inputs.enable_vnet }}" == "true" ]; then TARGETS="$TARGETS -target=module.vnet_spoke"; fi
+          if [ "${{ inputs.enable_observability }}" == "true" ]; then TARGETS="$TARGETS -target=module.observability"; fi
+          if [ "${{ inputs.enable_storage }}" == "true" ]; then TARGETS="$TARGETS -target=module.storage_account"; fi
+          if [ "${{ inputs.enable_service_bus }}" == "true" ]; then TARGETS="$TARGETS -target=module.service_bus"; fi
+          if [ "${{ inputs.enable_event_grid }}" == "true" ]; then TARGETS="$TARGETS -target=module.event_grid"; fi
+          if [ "${{ inputs.enable_sql }}" == "true" ]; then TARGETS="$TARGETS -target=module.sql"; fi
+          if [ "${{ inputs.enable_key_vault }}" == "true" ]; then TARGETS="$TARGETS -target=module.key_vault"; fi
+          if [ "${{ inputs.enable_container_apps }}" == "true" ]; then TARGETS="$TARGETS -target=module.container_apps"; fi
+          # Root-level RBAC when all three are enabled: SQL + KV + Managed Identity
+          if [ "${{ inputs.enable_sql }}" == "true" ] && [ "${{ inputs.enable_key_vault }}" == "true" ] && [ "${{ inputs.enable_managed_identity }}" == "true" ]; then
+            TARGETS="$TARGETS -target=azurerm_role_assignment.sql_key_vault_access"
+          fi
+          echo "TF_TARGETS=$TARGETS" >> $GITHUB_ENV
+          echo "Terraform targets: $TARGETS"
+
       - name: Terraform Plan
         if: inputs.action == 'plan' || inputs.action == 'apply'
-        run: terraform plan -input=false -lock=false -out=tfplan
+        run: terraform plan -input=false -lock=false -out=tfplan $TF_TARGETS
 
       - name: Terraform Apply
         if: inputs.action == 'apply'
