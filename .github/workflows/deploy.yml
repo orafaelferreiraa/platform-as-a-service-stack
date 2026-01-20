@@ -14,7 +14,6 @@ on:
         options:
           - plan
           - apply
-          - destroy
         default: plan
       
       # Feature Flags - Control which resources to deploy
@@ -187,10 +186,6 @@ jobs:
       - name: Terraform Apply
         if: inputs.action == 'apply'
         run: terraform apply -input=false -lock=false -auto-approve tfplan
-
-      - name: Terraform Destroy
-        if: inputs.action == 'destroy'
-        run: terraform destroy -input=false -lock=false -refresh=false -auto-approve
 
       - name: Upload Plan Artifact
         if: inputs.action == 'plan'
