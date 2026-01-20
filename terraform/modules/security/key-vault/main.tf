@@ -23,7 +23,12 @@ resource "azurerm_role_assignment" "current_admin" {
 # Wait for RBAC propagation (Azure RBAC can take up to 5 minutes to propagate)
 resource "time_sleep" "wait_for_rbac" {
   depends_on      = [azurerm_role_assignment.current_admin]
-  create_duration = "120s"
+  create_duration = "180s"
+
+  # Re-trigger sleep if the role assignment changes
+  triggers = {
+    role_assignment_id = azurerm_role_assignment.current_admin.id
+  }
 }
 
 # RBAC: Grant managed identity Key Vault Secrets User role (only if managed_identity_id is provided)
