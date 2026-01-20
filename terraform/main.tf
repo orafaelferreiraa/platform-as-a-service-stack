@@ -119,7 +119,7 @@ module "sql" {
   database_name              = module.naming.sql_database
   location                   = var.location
   resource_group_name        = module.resource_group.name
-  managed_identity_id        = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  administrator_login        = var.sql_administrator_login
   vnet_subnet_ids            = var.enable_vnet ? [module.vnet_spoke[0].default_subnet_id] : []
   tags                       = local.base_tags
   enable_observability       = var.enable_observability

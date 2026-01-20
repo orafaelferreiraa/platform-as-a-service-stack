@@ -67,6 +67,12 @@ variable "enable_sql" {
   default     = true
 }
 
+variable "sql_administrator_login" {
+  description = "SQL Server administrator login name"
+  type        = string
+  default     = "sql_admin"
+}
+
 variable "enable_container_apps" {
   description = "Enable Container Apps Environment"
   type        = bool

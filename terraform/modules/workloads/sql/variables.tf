@@ -18,11 +18,6 @@ variable "resource_group_name" {
   type        = string
 }
 
-variable "managed_identity_id" {
-  description = "Principal ID of the managed identity"
-  type        = string
-}
-
 variable "administrator_login" {
   description = "Administrator login for SQL Server (defaults to sql_admin)"
   type        = string
