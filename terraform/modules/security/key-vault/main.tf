@@ -27,9 +27,9 @@ resource "time_sleep" "wait_for_rbac" {
   depends_on      = [azurerm_role_assignment.current_admin]
   create_duration = "120s"
 
-  # Only recreate if the role assignment is recreated
-  triggers = {
-    role_assignment_id = azurerm_role_assignment.current_admin.id
+  lifecycle {
+    # Prevent recreation - time_sleep only needs to run once after role assignment is created
+    ignore_changes = all
   }
 }
 

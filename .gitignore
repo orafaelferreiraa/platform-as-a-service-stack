@@ -7,6 +7,7 @@ terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/crash.log
 terraform/crash.*.log
+terraform/test.tfvars
 terraform/.DS_Store
 terraform/.idea/
 terraform/*.swp

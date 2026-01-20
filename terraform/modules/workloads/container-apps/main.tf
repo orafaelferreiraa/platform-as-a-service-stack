@@ -18,9 +18,11 @@ resource "azurerm_container_app_environment" "main" {
   tags = var.tags
 
   lifecycle {
+    # Prevent unnecessary recreation
     ignore_changes = [
-      # Ignore changes to workload_profile to prevent unnecessary recreation
-      workload_profile
+      workload_profile,
+      infrastructure_subnet_id,
+      internal_load_balancer_enabled
     ]
   }
 }
