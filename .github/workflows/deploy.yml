@@ -180,11 +180,9 @@ jobs:
             --account-name "storagepaas" \
             --auth-mode login || true
 
-      # Note: -refresh=false is used temporarily to handle RBAC propagation during role assignment recreation
-      # After the first successful apply, this flag can be removed
       - name: Terraform Plan
         if: inputs.action == 'plan' || inputs.action == 'apply'
-        run: terraform plan -input=false -lock=false -refresh=false -out=tfplan
+        run: terraform plan -input=false -lock=false -out=tfplan
 
       - name: Terraform Apply
         if: inputs.action == 'apply'
