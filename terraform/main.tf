@@ -167,5 +167,9 @@ resource "azurerm_role_assignment" "sql_key_vault_access" {
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = module.sql[0].identity_principal_id
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   depends_on = [module.sql, module.key_vault]
 }

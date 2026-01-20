@@ -21,6 +21,10 @@ resource "azurerm_storage_account" "main" {
   }
 
   tags = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Network rules (if VNet is enabled)

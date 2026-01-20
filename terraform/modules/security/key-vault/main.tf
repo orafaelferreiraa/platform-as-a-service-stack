@@ -9,6 +9,10 @@ resource "azurerm_key_vault" "main" {
   rbac_authorization_enabled = true
 
   tags = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # RBAC: Grant current service principal Key Vault Administrator role

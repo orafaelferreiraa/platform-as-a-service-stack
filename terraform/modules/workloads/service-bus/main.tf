@@ -4,6 +4,10 @@ resource "azurerm_servicebus_namespace" "main" {
   resource_group_name = var.resource_group_name
   sku                 = var.sku
   tags                = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Create a default queue

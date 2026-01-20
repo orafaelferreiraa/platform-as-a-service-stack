@@ -23,6 +23,10 @@ resource "azurerm_mssql_server" "main" {
   }
 
   tags = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Firewall rule to allow Azure services

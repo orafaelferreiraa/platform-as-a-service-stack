@@ -10,6 +10,10 @@ resource "azurerm_network_security_group" "main" {
   location            = var.location
   resource_group_name = var.resource_group_name
   tags                = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Virtual Network
@@ -19,6 +23,10 @@ resource "azurerm_virtual_network" "main" {
   resource_group_name = var.resource_group_name
   address_space       = var.address_space
   tags                = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Default Subnet
@@ -27,6 +35,10 @@ resource "azurerm_subnet" "default" {
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.default_subnet_prefix]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   service_endpoints = [
     "Microsoft.Storage",
@@ -38,6 +50,10 @@ resource "azurerm_subnet" "default" {
 # Container Apps Subnet (requires delegation)
 resource "azurerm_subnet" "container_apps" {
   name                 = local.subnet_container_apps_name
+  lifecycle {
+    prevent_destroy = true
+  }
+
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.container_apps_subnet_prefix]
