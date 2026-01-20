@@ -169,7 +169,7 @@ jobs:
 
       - name: Terraform Plan
         if: inputs.action == 'plan' || inputs.action == 'apply'
-        run: terraform plan -input=false -lock=false -out=tfplan
+        run: terraform plan -input=false -lock=false -out=tfplan -refresh=false
 
       - name: Terraform Apply
         if: inputs.action == 'apply'

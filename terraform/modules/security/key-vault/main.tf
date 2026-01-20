@@ -33,11 +33,6 @@ resource "azurerm_role_assignment" "current_admin" {
 resource "time_sleep" "wait_for_rbac" {
   depends_on      = [azurerm_role_assignment.current_admin]
   create_duration = "120s"
-
-  lifecycle {
-    # Prevent recreation - time_sleep only needs to run once after role assignment is created
-    ignore_changes = all
-  }
 }
 
 # RBAC: Grant managed identity Key Vault Secrets User role (only if managed_identity_id is provided)
