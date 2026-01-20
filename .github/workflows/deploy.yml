@@ -190,15 +190,15 @@ jobs:
           STATE_RESOURCES=$(terraform state list 2>/dev/null || echo "")
           
           # Check what resources exist in state
-          HAS_MANAGED_IDENTITY=$(echo "$STATE_RESOURCES" | grep -c "module.managed_identity" || echo "0")
-          HAS_VNET=$(echo "$STATE_RESOURCES" | grep -c "module.vnet_spoke" || echo "0")
-          HAS_OBSERVABILITY=$(echo "$STATE_RESOURCES" | grep -c "module.observability" || echo "0")
-          HAS_STORAGE=$(echo "$STATE_RESOURCES" | grep -c "module.storage_account" || echo "0")
-          HAS_SERVICE_BUS=$(echo "$STATE_RESOURCES" | grep -c "module.service_bus" || echo "0")
-          HAS_EVENT_GRID=$(echo "$STATE_RESOURCES" | grep -c "module.event_grid" || echo "0")
-          HAS_SQL=$(echo "$STATE_RESOURCES" | grep -c "module.sql" || echo "0")
-          HAS_KEY_VAULT=$(echo "$STATE_RESOURCES" | grep -c "module.key_vault" || echo "0")
-          HAS_CONTAINER_APPS=$(echo "$STATE_RESOURCES" | grep -c "module.container_apps" || echo "0")
+          HAS_MANAGED_IDENTITY=$(echo "$STATE_RESOURCES" | grep -c "module.managed_identity" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_VNET=$(echo "$STATE_RESOURCES" | grep -c "module.vnet_spoke" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_OBSERVABILITY=$(echo "$STATE_RESOURCES" | grep -c "module.observability" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_STORAGE=$(echo "$STATE_RESOURCES" | grep -c "module.storage_account" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_SERVICE_BUS=$(echo "$STATE_RESOURCES" | grep -c "module.service_bus" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_EVENT_GRID=$(echo "$STATE_RESOURCES" | grep -c "module.event_grid" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_SQL=$(echo "$STATE_RESOURCES" | grep -c "module.sql" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_KEY_VAULT=$(echo "$STATE_RESOURCES" | grep -c "module.key_vault" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_CONTAINER_APPS=$(echo "$STATE_RESOURCES" | grep -c "module.container_apps" 2>/dev/null | tr -d ' \n' || echo "0")
           
           # Force enable flags for resources that already exist in state
           # This prevents Terraform from seeing them as "not in configuration"
