@@ -1,3 +1,6 @@
+# Get current client config once at root level (values are static after read)
+data "azurerm_client_config" "current" {}
+
 locals {
   base_tags = merge(
     {
@@ -123,12 +126,14 @@ module "sql" {
 
 # Security: Key Vault (optional) - depends on SQL for password storage, uses Managed Identity for RBAC if enabled
 module "key_vault" {
-  count               = var.enable_key_vault ? 1 : 0
-  source              = "./modules/security/key-vault"
-  name                = module.naming.key_vault
-  location            = var.location
-  resource_group_name = module.resource_group.name
-  managed_identity_id = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  count                = var.enable_key_vault ? 1 : 0
+  source               = "./modules/security/key-vault"
+  name                 = module.naming.key_vault
+  location             = var.location
+  resource_group_name  = module.resource_group.name
+  tenant_id            = data.azurerm_client_config.current.tenant_id
+  current_principal_id = data.azurerm_client_config.current.object_id
+  managed_identity_id  = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
   secrets = var.enable_sql ? {
     "sql-admin-password" = module.sql[0].admin_password
   } : {}

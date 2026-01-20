@@ -13,6 +13,16 @@ variable "resource_group_name" {
   type        = string
 }
 
+variable "tenant_id" {
+  description = "Azure tenant ID for Key Vault"
+  type        = string
+}
+
+variable "current_principal_id" {
+  description = "Principal ID of the current service principal (for RBAC admin role)"
+  type        = string
+}
+
 variable "managed_identity_id" {
   description = "Principal ID of the managed identity for RBAC"
   type        = string

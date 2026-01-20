@@ -1,32 +1,23 @@
-data "azurerm_client_config" "current" {}
-
 resource "azurerm_key_vault" "main" {
   name                       = var.name
   location                   = var.location
   resource_group_name        = var.resource_group_name
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  tenant_id                  = var.tenant_id
   sku_name                   = "standard"
   soft_delete_retention_days = 7
   purge_protection_enabled   = false
   rbac_authorization_enabled = true
 
   tags = var.tags
-
-  lifecycle {
-    ignore_changes = [tenant_id]
-  }
 }
 
 # RBAC: Grant current service principal Key Vault Administrator role
-# Using lifecycle ignore_changes to prevent recreation on each apply
+# Using uuidv5 with static values to ensure deterministic role assignment name
 resource "azurerm_role_assignment" "current_admin" {
+  name                 = uuidv5("dns", "${azurerm_key_vault.main.id}-${var.current_principal_id}-admin")
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Administrator"
-  principal_id         = data.azurerm_client_config.current.object_id
-
-  lifecycle {
-    ignore_changes = [name, principal_id]
-  }
+  principal_id         = var.current_principal_id
 }
 
 # Wait for RBAC propagation (Azure RBAC can take up to 5 minutes to propagate)
