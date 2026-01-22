@@ -2,6 +2,28 @@
 
 Azure infrastructure platform for accelerating product development through composable, secure, and reusable infrastructure capabilities.
 
+> **Version 3.0.0**: Full implementation with deterministic naming conventions (MD5 suffixes), RBAC-enabled security, and comprehensive feature flags.
+
+---
+
+## 📋 What's New in v3.0
+
+### Core Implementation
+- ✅ **Deterministic Naming**: MD5-based suffixes for globally unique resource names (no `random_string` destroy/recreate cycles)
+- ✅ **RBAC-First Security**: All resources use Azure AD authentication and role-based access
+- ✅ **Feature Flags**: All resources optional via `enable_*` variables with proper dependency validation
+- ✅ **Time-based RBAC Propagation**: 180s `time_sleep` before creating secrets to ensure Azure AD RBAC propagation
+- ✅ **Deterministic Role Assignments**: All role assignments use `uuidv5()` for stable IDs across applies
+- ✅ **Complete Observability**: Diagnostic settings integrated when Observability is enabled
+
+### Key Resources Implemented
+- **Foundation**: Resource Group (with `prevent_destroy`), Naming Convention, Managed Identity
+- **Networking**: VNet Spoke with default + delegated subnets for Container Apps
+- **Security**: Key Vault (RBAC-enabled), Managed Identity
+- **Workloads**: Storage Account (Azure AD only), Service Bus (Premium), Event Grid, SQL Server (AAD admin), Observability, Container Apps
+
+---
+
 ## Quick Start
 
 ### 1. Prerequisites
@@ -203,56 +225,71 @@ enable_container_apps   = true
 
 ### SQL Server
 
-- **Default admin user**: `sql_admin` (hardcoded, not passed via pipeline)
-- **Password**: Auto-generated with `random_password`
-- **Storage**: Automatically stored in Key Vault (if enabled)
-- **Azure AD Admin**: Optional, configured via variables
+- **Default admin user**: `sqladmin` (hardcoded, not passed via pipeline)
+- **Password**: Auto-generated with `random_password` (16 chars minimum: 1 lowercase, 1 uppercase, 1 numeric, 1 special)
+- **Storage**: Automatically stored in Key Vault as `sql-admin-password` secret (if enabled)
+- **Azure AD Admin**: Configured via `data.azurerm_client_config.current.object_id` (current principal)
+- **TLS Minimum**: 1.2 enforced
+- **System-Assigned Identity**: Enabled for RBAC and Azure AD authentication
+- **Version**: 12.0 (SQL Server 2020 compatible)
 
-### Security
+### Storage Account
 
-- **Managed Identity**: Default authentication method (passwordless)
-- **RBAC-based**: All access control via Azure RBAC
-- **TLS 1.2+**: Minimum TLS version for all resources
-- **No shared keys**: Storage Account uses Azure AD authentication only
+- **Shared Keys**: Disabled (`shared_access_key_enabled = false`)
+- **Azure AD Only**: Uses Azure AD authentication exclusively (`storage_use_azuread = true`)
+- **RBAC Role**: Storage Blob Data Contributor assigned to Managed Identity (if enabled)
+- **TLS Minimum**: 1.2 enforced
+- **Blob Properties**:
+  - Versioning: Enabled
+  - Delete retention: 7 days
+  - Container delete retention: 7 days
+- **Containers**: Created AFTER RBAC role assignment to ensure permissions are propagated
+- **Network Access**: Public endpoint enabled (configurable via vnet_subnet_ids for firewall rules)
 
 ### Key Vault
 
 - **RBAC Authorization**: Always enabled (`enable_rbac_authorization = true`)
-- **RBAC Propagation**: Uses `time_sleep` (180s) to wait for RBAC propagation
+- **RBAC Propagation**: Uses `time_sleep` with 180s delay to wait for RBAC propagation before creating secrets
+- **Soft Delete**: 7-day retention (safeguard for accidental deletion recovery)
+- **Purge Protection**: Disabled (to allow cleanup during terraform destroy)
+- **SKU**: Standard tier
+- **Current Principal**: Automatically granted Key Vault Administrator role via uuidv5
 - **No secret exposure**: Outputs only contain IDs and URIs, never secret values
 
 ### Container Apps
 
-- **Requires Observability**: Will not be created if `enable_observability = false`
-- **VNet Integration**: Uses delegated subnet with `/27` minimum size
-- **Workload Profile**: Required when using delegated subnet
+- **Requires Observability**: Will not be created if `enable_observability = false` (validation enforced)
+- **VNet Integration**: Optional - uses delegated subnet (`Microsoft.App/environments`) with `/27` minimum size
+- **Workload Profile**: Required when using delegated subnet (Consumption profile)
 - **Lifecycle**: Uses `ignore_changes` on `workload_profile` to prevent unnecessary recreation
-
-### Role Assignments
-
-- **Deterministic UUIDs**: All role assignments use `uuidv5()` to generate stable IDs
-- **No destroy/recreate**: Same inputs always generate the same UUID
-- **Pattern**: `uuidv5("dns", "${scope_id}-${principal_id}-${role_suffix}")`
-
----
+- **Internal Load Balancer**: Enabled when infrastructure_subnet_id is provided
+- **Log Analytics**: Reference to workspace_id is required (comes from Observability module)
 
 ## Naming Conventions
 
-All resources follow [Microsoft Cloud Adoption Framework](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming) standards:
+All resources follow [Microsoft Cloud Adoption Framework](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming) standards with deterministic MD5 suffixes for global uniqueness:
 
-| Resource | Pattern | Example |
-|----------|---------|---------|
-| Resource Group | `rg-{name}-{region}` | `rg-myplatform-eus2` |
-| Virtual Network | `vnet-{name}-{region}` | `vnet-myplatform-eus2` |
-| Managed Identity | `id-{name}-{region}` | `id-myplatform-eus2` |
-| Key Vault | `kv{name}{region}{suffix}` | `kvmyplatformeus2abc1` |
-| Storage Account | `st{name}{region}{suffix}` | `stmyplatformeus2abc1` |
-| Service Bus | `sbns-{name}-{region}` | `sbns-myplatform-eus2` |
-| Event Grid | `evgd-{name}-{region}` | `evgd-myplatform-eus2` |
-| SQL Server | `sql-{name}-{region}` | `sql-myplatform-eus2` |
-| Log Analytics | `log-{name}-{region}` | `log-myplatform-eus2` |
-| App Insights | `appi-{name}-{region}` | `appi-myplatform-eus2` |
-| Container Apps Env | `cae-{name}-{region}` | `cae-myplatform-eus2` |
+### Naming Pattern Details
+
+- **MD5 Suffix**: Generated from `substr(md5(var.name), 0, 4)` - same name always produces same suffix
+- **Location Abbreviations**: eastus2=eus2, westus2=wus2, etc.
+- **Deterministic**: NO random suffixes - ensures stable resource names across applies
+
+| Resource | Pattern | Example | Notes |
+|----------|---------|---------|-------|
+| Resource Group | `rg-{name}-{region}` | `rg-myplatform-eus2` | Lifecycle: prevent_destroy=true |
+| Virtual Network | `vnet-{name}-{region}` | `vnet-myplatform-eus2` | Contains default + delegated subnets |
+| Container Apps Subnet | `snet-ca-{name}-{region}` | `snet-ca-myplatform-eus2` | /27 minimum, delegated to Microsoft.App/environments |
+| Managed Identity | `id-{name}-{region}` | `id-myplatform-eus2` | User-Assigned type |
+| Key Vault | `kv{name}{region}{md5}` | `kvmyplatformeus2abc1` | RBAC-enabled, 180s RBAC propagation delay |
+| Storage Account | `st{name}{region}{md5}` | `stmyplatformeus2abc1` | No shared keys, Azure AD only, blobs + containers |
+| Service Bus | `sb-{name}-{region}-{md5}` | `sb-myplatform-eus2-abc1` | Premium tier, includes Queue and Topic |
+| Event Grid Domain | `evgd-{name}-{region}` | `evgd-myplatform-eus2` | Domain type for event routing, Service Bus integration |
+| SQL Server | `sql-{name}-{region}-{md5}` | `sql-myplatform-eus2-abc1` | System-Assigned identity, AAD admin, TLS 1.2+ |
+| SQL Database | `sqldb-{name}-{region}` | `sqldb-myplatform-eus2` | Elastic pool compatible, diagnostic logging |
+| Log Analytics | `log-{name}-{region}` | `log-myplatform-eus2` | 30-day retention, workspace for diagnostic settings |
+| App Insights | `appi-{name}-{region}` | `appi-myplatform-eus2` | Type: web, linked to Log Analytics |
+| Container Apps Env | `cae-{name}-{region}-{md5}` | `cae-myplatform-eus2-abc1` | Requires Log Analytics, workload profile dynamic, /27 delegated subnet optional |
 
 ---
 
@@ -318,7 +355,15 @@ platform-as-a-service-stack/
 
 ---
 
-## Technical Constraints (Azure Provider 4.x)
+## Technical Constraints (Azure Provider 4.57+)
+
+### Required Providers
+
+The following providers are required and automatically configured:
+
+- **azurerm**: 4.57+ - Azure resource management
+- **random**: 3.8+ - Random value generation (used for SQL passwords)
+- **time**: 0.13+ - Time-based operations (RBAC propagation delays)
 
 ### Deprecated Attributes - DO NOT USE
 
@@ -364,7 +409,9 @@ MIT License - see [LICENSE](LICENSE) for details
 
 ---
 
-**Version**: 2.0.0  
+**Version**: 3.0.0  
 **Terraform**: 1.9.0+  
-**AzureRM Provider**: 4.x  
+**AzureRM Provider**: 4.57+  
+**Random Provider**: 3.8+  
+**Time Provider**: 0.13+  
 **Last Updated**: January 2026

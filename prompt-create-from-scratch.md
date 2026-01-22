@@ -8,7 +8,8 @@
 
 ### Stack Tecnológica
 - **Cloud Provider**: Azure
-- **IaC**: Terraform (provider azurerm 4.x+)
+- **IaC**: Terraform 1.9.0+ (provider azurerm 4.57+)
+- **Additional Providers**: random ~> 3.8, time ~> 0.13
 - **CI/CD**: GitHub Actions
 - **Autenticação**: Service Principal + Client Secret (variáveis ARM_*)
 
@@ -24,9 +25,11 @@
 ## 📋 Recursos da Plataforma
 
 ### Fundação (Foundation)
-- **Resource Group** - Sempre criado
-- **Naming Convention** - Sufixos MD5 determinísticos para nomes únicos
-- **Managed Identity** - Opcional, mas RECOMENDADO para RBAC
+- **Resource Group** - Sempre criado com lifecycle `prevent_destroy = true`
+- **Naming Convention** - Sufixos MD5 determinísticos para nomes globalmente únicos
+  - Pattern: `substr(md5(var.name), 0, 4)` = sempre mesmo suffix para mesmo name
+  - Location abbreviations: eastus2=eus2, westus2=wus2, etc
+- **Managed Identity** - User-Assigned, Opcional mas RECOMENDADO para RBAC
 
 ### Rede (Networking)
 - **VNet Spoke** - Opcional, com subnet default e subnet delegada para Container Apps
@@ -36,12 +39,18 @@
 - **Managed Identity** - Principal de segurança para RBAC
 
 ### Workloads
-- **Observability** - Log Analytics + Application Insights
-- **Storage Account** - Autenticação Azure AD apenas, sem chaves
-- **Service Bus** - Namespace Premium com Queue e Topic
-- **Event Grid** - Domain com subscription opcional para Service Bus
-- **SQL Server + Database** - Senha auto-gerada no Key Vault
+- **Observability** - Log Analytics (30-day retention) + Application Insights (web type)
+- **Storage Account** - Autenticação Azure AD apenas, sem chaves (`shared_access_key_enabled = false`)
+  - Blobs com versioning e 7-day delete retention
+  - Containers criados após RBAC propagation (time_sleep 180s)
+- **Service Bus** - Namespace Premium com Queue e Topic inclusos
+- **Event Grid** - Domain tipo com subscription para Service Bus
+- **SQL Server + Database** - Senha auto-gerada (`random_password`) e armazenada no Key Vault
+  - Version: 12.0, AAD admin, System-Assigned identity
+  - TLS 1.2+ obrigatório
 - **Container Apps Environment** - REQUER Observability
+  - Workload profile dinâmico para /27 subnet delegada
+  - Lifecycle `ignore_changes` em workload_profile
 
 ---
 
@@ -194,7 +203,7 @@ locals {
 
 ```hcl
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9.0"
   
   required_providers {
     azurerm = {
@@ -215,7 +224,7 @@ terraform {
 provider "azurerm" {
   features {}
   subscription_id     = var.subscription_id
-  storage_use_azuread = true  # OBRIGATÓRIO para Storage sem chaves
+  storage_use_azuread = true  # OBRIGATÓRIO para Storage sem chaves (shared_access_key_enabled = false)
 }
 ```
 
@@ -1036,6 +1045,7 @@ terraform plan -var-file=test.tfvars
 
 ---
 
-**Versão**: 3.0 - Blueprint Completo para Criação do Zero
+**Versão**: 3.1 - Blueprint Implementado com Naming Convention Determinística
 **Data**: Janeiro 2026
 **Objetivo**: Criar plataforma Azure modular e escalável com Terraform + GitHub Actions
+**Status**: ✅ Implementado com todas as regras de negócio preservadas
