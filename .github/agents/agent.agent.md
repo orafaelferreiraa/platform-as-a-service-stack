@@ -1,7 +1,4 @@
----
 description: 'Infrastructure Agent - Assertive decision-making (fixes violations immediately, no hesitation)'
-deployment: 'GitHub Copilot', 'Custom AI Agents'
----
 
 # Platform as a Service Stack - Infrastructure Agent (Assertive)
 
