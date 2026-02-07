@@ -1,4 +1,4 @@
-name: deploy-apply
+name: Deploy Platform Infrastructure
 
 on:
   push:
