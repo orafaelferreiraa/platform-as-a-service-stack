@@ -1,6 +1,7 @@
 #checkov:skip=CKV_AZURE_189:Public network access required for GitHub-hosted CI/CD runners
 #checkov:skip=CKV_AZURE_109:Network ACL default deny not possible with GitHub-hosted CI/CD runners
 #checkov:skip=CKV2_AZURE_32:Private endpoint not possible with GitHub-hosted CI/CD runners - no static IP for runner VNet integration
+#tfsec:ignore:azure-keyvault-specify-network-acl Network ACL default deny not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration
 resource "azurerm_key_vault" "main" {
   name                       = var.name
   location                   = var.location

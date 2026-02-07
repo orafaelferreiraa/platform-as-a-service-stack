@@ -1,5 +1,8 @@
 #checkov:skip=CKV2_AZURE_1:CMK encryption requires Premium tier and dedicated encryption Key Vault - not applicable for platform Standard storage
 #checkov:skip=CKV2_AZURE_21:Classic Storage Analytics logging deprecated in azurerm 4.x - using Azure Monitor Diagnostic Settings for StorageRead/Write/Delete instead
+#tfsec:ignore:azure-storage-use-customer-managed-key CMK requires Premium tier - Standard storage uses Microsoft-managed keys
+#tfsec:ignore:azure-storage-queue-services-logging-enabled Classic Queue Analytics logging deprecated - using Azure Monitor Diagnostic Settings instead
+#tfsec:ignore:azure-storage-default-action-deny Network rules conditionally applied when VNet is enabled - GitHub-hosted runners require public access
 resource "azurerm_storage_account" "main" {
   name                            = var.name
   location                        = var.location

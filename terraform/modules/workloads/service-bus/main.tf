@@ -1,11 +1,13 @@
 #checkov:skip=CKV_AZURE_199:Double encryption requires Premium SKU - using Standard for cost optimization
 #checkov:skip=CKV_AZURE_201:Customer-managed key requires Premium SKU - using Standard for cost optimization
+#tfsec:ignore:azure-servicebus-use-customer-managed-key CMK requires Premium SKU - using Standard for cost optimization
 resource "azurerm_servicebus_namespace" "main" {
-  name                = var.name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  sku                 = var.sku
-  tags                = var.tags
+  name                 = var.name
+  location             = var.location
+  resource_group_name  = var.resource_group_name
+  sku                  = var.sku
+  local_auth_enabled   = false
+  tags                 = var.tags
 
   lifecycle {
     prevent_destroy = true

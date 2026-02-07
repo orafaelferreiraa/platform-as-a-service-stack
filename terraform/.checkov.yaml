@@ -14,5 +14,7 @@ skip-check:
   - CKV2_AZURE_32  # Private endpoint not possible with GitHub-hosted CI/CD runners
 
   # SQL Server
+  - CKV_AZURE_24   # Audit retention via retention_in_days only applies to storage destinations - audit logs sent to Log Analytics (log_monitoring_enabled=true) where retention is managed by workspace retention policy
   - CKV2_AZURE_27  # Azure AD-only auth requires org-specific AD configuration - SQL auth maintained for platform flexibility
   - CKV2_AZURE_34  # AllowAzureServices (0.0.0.0) required for Azure PaaS services and GitHub-hosted runners connectivity
+  - CKV2_AZURE_45  # Private endpoint not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration

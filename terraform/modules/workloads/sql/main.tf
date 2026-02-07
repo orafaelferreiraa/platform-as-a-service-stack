@@ -11,6 +11,7 @@ resource "random_password" "sql_admin" {
 # SQL Server with system-assigned identity
 #checkov:skip=CKV_AZURE_24:Audit retention managed by Log Analytics workspace retention policy - retention_in_days deprecated in azurerm 4.x
 #checkov:skip=CKV2_AZURE_27:Azure AD-only auth requires org-specific AD configuration - SQL auth maintained for platform flexibility
+#tfsec:ignore:azure-database-no-public-access Public access required for GitHub-hosted CI/CD runners and Azure PaaS service connectivity
 resource "azurerm_mssql_server" "main" {
   name                         = var.server_name
   location                     = var.location
@@ -75,10 +76,12 @@ resource "azurerm_mssql_server_extended_auditing_policy" "main" {
 }
 
 # SQL Server Security Alert Policy
+#tfsec:ignore:azure-database-threat-alert-email-set Alert email addresses are org-specific - configured post-deployment by platform consumers
 resource "azurerm_mssql_server_security_alert_policy" "main" {
-  resource_group_name = var.resource_group_name
-  server_name         = azurerm_mssql_server.main.name
-  state               = "Enabled"
+  resource_group_name  = var.resource_group_name
+  server_name          = azurerm_mssql_server.main.name
+  state                = "Enabled"
+  email_account_admins = true
 }
 
 # Note: SQL Server-level diagnostic settings are not supported.
