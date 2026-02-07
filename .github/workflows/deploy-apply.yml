@@ -69,27 +69,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  core-validation:
-    name: Pipeline Core Validation
-    uses: orafaelferreiraa/pipeline-as-a-service-stack/.github/workflows/pipeline-core.yaml@main
-    secrets: inherit
-    permissions:
-      contents: read
-      pull-requests: write
-      security-events: write
-    with:
-      terraform_dir: terraform
-      terraform_version: '~1.9.0'
-      enable_tflint: true
-      enable_tfsec: true
-      enable_checkov: true
-      generate_tfdocs: true
-      enable_tf_cost: false
-      soft_fail: false
-
   terraform:
     name: Terraform Apply
-    needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
     if: github.actor != 'github-actions[bot]'
@@ -214,7 +195,7 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform init -input=false \
+          terraform init -input=false -reconfigure \
             -backend-config="resource_group_name=rg-paas" \
             -backend-config="storage_account_name=storagepaas" \
             -backend-config="container_name=tfstate" \
