@@ -30,6 +30,7 @@ resource "azurerm_mssql_server" "main" {
 }
 
 # Firewall rule to allow Azure services
+#checkov:skip=CKV_AZURE_132:AllowAzureServices required for platform connectivity from GitHub-hosted CI/CD
 resource "azurerm_mssql_firewall_rule" "allow_azure_services" {
   name             = "AllowAzureServices"
   server_id        = azurerm_mssql_server.main.id
@@ -62,6 +63,19 @@ resource "azurerm_mssql_database" "main" {
   lifecycle {
     ignore_changes = [geo_backup_enabled]
   }
+}
+
+# SQL Server Extended Auditing Policy
+resource "azurerm_mssql_server_extended_auditing_policy" "main" {
+  server_id              = azurerm_mssql_server.main.id
+  log_monitoring_enabled = true
+}
+
+# SQL Server Security Alert Policy
+resource "azurerm_mssql_server_security_alert_policy" "main" {
+  resource_group_name = var.resource_group_name
+  server_name         = azurerm_mssql_server.main.name
+  state               = "Enabled"
 }
 
 # Note: SQL Server-level diagnostic settings are not supported.
