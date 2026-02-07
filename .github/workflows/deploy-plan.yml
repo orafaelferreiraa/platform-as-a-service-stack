@@ -1,4 +1,4 @@
-name: deploy-plan
+name: Plan Platform Infrastructure
 
 on:
   pull_request:
