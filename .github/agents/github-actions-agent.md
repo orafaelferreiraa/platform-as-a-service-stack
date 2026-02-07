@@ -13,7 +13,7 @@ tools:
   - create_file
   - file_search
 model: Claude Sonnet 4
-infer: true
+user-invokable: true
 target: vscode
 handoffs:
   - label: Review Terraform Code
