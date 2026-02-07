@@ -7,6 +7,7 @@ skip-check:
   - CKV_AZURE_33   # Queue service logging not applicable - platform does not use Queue storage. Monitoring via Azure Monitor Diagnostic Settings
   - CKV_AZURE_35   # Default network deny checked on inline network_rules block - platform uses separate azurerm_storage_account_network_rules resource
   - CKV_AZURE_36   # Trusted MS Services bypass checked on inline network_rules - platform uses separate azurerm_storage_account_network_rules with bypass=AzureServices
+  - CKV_AZURE_59   # Public network access required for GitHub-hosted CI/CD runners - no static IPs for private endpoints
   - CKV_AZURE_206  # Geo-redundant replication (GRS) not required - LRS is intentional for cost optimization on non-critical platform storage
   - CKV2_AZURE_1   # CMK encryption requires Premium tier and dedicated encryption Key Vault - Standard storage uses Microsoft-managed keys
   - CKV2_AZURE_18  # CMK encryption (graph check) - same justification as CKV2_AZURE_1
@@ -16,6 +17,8 @@ skip-check:
   - CKV2_AZURE_47  # Fixed in code with allow_nested_items_to_be_public = false - skip kept as fallback for graph evaluation
 
   # Key Vault
+  - CKV_AZURE_109  # Network ACL default deny not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration
+  - CKV_AZURE_189  # Public network access required for GitHub-hosted CI/CD runners - no static IPs for private endpoints
   - CKV2_AZURE_32  # Private endpoint not possible with GitHub-hosted CI/CD runners
 
   # SQL Server & Database
@@ -30,4 +33,6 @@ skip-check:
   - CKV2_AZURE_45  # Private endpoint not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration
 
   # Service Bus
+  - CKV_AZURE_199  # Double encryption requires Premium SKU - using Standard for cost optimization
+  - CKV_AZURE_201  # Customer-managed key requires Premium SKU - using Standard for cost optimization
   - CKV_AZURE_204  # Public network access required for GitHub-hosted CI/CD runners - no static IPs for private endpoints
