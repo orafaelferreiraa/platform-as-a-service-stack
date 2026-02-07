@@ -1,12 +1,6 @@
 name: deploy-plan
 
 on:
-  push:
-    branches:
-      - '**'
-    paths:
-      - 'terraform/**'
-      - '.github/workflows/deploy-plan.yml'
   pull_request:
     branches: [ main ]
     paths:

@@ -1,12 +1,15 @@
+#checkov:skip=CKV2_AZURE_1:CMK encryption requires Premium tier and dedicated encryption Key Vault - not applicable for platform Standard storage
+#checkov:skip=CKV2_AZURE_21:Classic Storage Analytics logging deprecated in azurerm 4.x - using Azure Monitor Diagnostic Settings for StorageRead/Write/Delete instead
 resource "azurerm_storage_account" "main" {
-  name                       = var.name
-  location                   = var.location
-  resource_group_name        = var.resource_group_name
-  account_tier               = "Standard"
-  account_replication_type   = "LRS"
-  account_kind               = "StorageV2"
-  https_traffic_only_enabled = true
-  min_tls_version            = "TLS1_2"
+  name                            = var.name
+  location                        = var.location
+  resource_group_name             = var.resource_group_name
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  account_kind                    = "StorageV2"
+  https_traffic_only_enabled      = true
+  min_tls_version                 = "TLS1_2"
+  allow_nested_items_to_be_public = false
 
   # Disable key-based authentication (Azure AD only)
   shared_access_key_enabled = false

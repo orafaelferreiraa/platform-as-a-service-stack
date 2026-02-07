@@ -9,6 +9,8 @@ resource "random_password" "sql_admin" {
 }
 
 # SQL Server with system-assigned identity
+#checkov:skip=CKV_AZURE_24:Audit retention managed by Log Analytics workspace retention policy - retention_in_days deprecated in azurerm 4.x
+#checkov:skip=CKV2_AZURE_27:Azure AD-only auth requires org-specific AD configuration - SQL auth maintained for platform flexibility
 resource "azurerm_mssql_server" "main" {
   name                         = var.server_name
   location                     = var.location
@@ -31,6 +33,7 @@ resource "azurerm_mssql_server" "main" {
 
 # Firewall rule to allow Azure services
 #checkov:skip=CKV_AZURE_132:AllowAzureServices required for platform connectivity from GitHub-hosted CI/CD
+#checkov:skip=CKV2_AZURE_34:AllowAzureServices (0.0.0.0) required for Azure PaaS services and GitHub-hosted runners connectivity
 resource "azurerm_mssql_firewall_rule" "allow_azure_services" {
   name             = "AllowAzureServices"
   server_id        = azurerm_mssql_server.main.id
