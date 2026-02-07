@@ -1,0 +1,38 @@
+# Checkov Configuration - Platform as a Service Stack
+# Security baseline decisions documented below with justifications
+# Graph-based (CKV2) checks require config-file skip as inline annotations may not work
+
+skip-check:
+  # Storage Account
+  - CKV_AZURE_33   # Queue service logging not applicable - platform does not use Queue storage. Monitoring via Azure Monitor Diagnostic Settings
+  - CKV_AZURE_35   # Default network deny checked on inline network_rules block - platform uses separate azurerm_storage_account_network_rules resource
+  - CKV_AZURE_36   # Trusted MS Services bypass checked on inline network_rules - platform uses separate azurerm_storage_account_network_rules with bypass=AzureServices
+  - CKV_AZURE_59   # Public network access required for GitHub-hosted CI/CD runners - no static IPs for private endpoints
+  - CKV_AZURE_206  # Geo-redundant replication (GRS) not required - LRS is intentional for cost optimization on non-critical platform storage
+  - CKV2_AZURE_1   # CMK encryption requires Premium tier and dedicated encryption Key Vault - Standard storage uses Microsoft-managed keys
+  - CKV2_AZURE_18  # CMK encryption (graph check) - same justification as CKV2_AZURE_1
+  - CKV2_AZURE_21  # Classic Storage Analytics logging deprecated in azurerm 4.x - using Azure Monitor Diagnostic Settings (StorageRead/Write/Delete)
+  - CKV2_AZURE_33  # Private endpoint not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration
+  - CKV2_AZURE_41  # SAS expiration policy not applicable - shared_access_key_enabled = false (Azure AD only auth)
+  - CKV2_AZURE_47  # Fixed in code with allow_nested_items_to_be_public = false - skip kept as fallback for graph evaluation
+
+  # Key Vault
+  - CKV_AZURE_109  # Network ACL default deny not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration
+  - CKV_AZURE_189  # Public network access required for GitHub-hosted CI/CD runners - no static IPs for private endpoints
+  - CKV2_AZURE_32  # Private endpoint not possible with GitHub-hosted CI/CD runners
+
+  # SQL Server & Database
+  - CKV_AZURE_24   # Audit retention via retention_in_days only applies to storage destinations - audit logs sent to Log Analytics (log_monitoring_enabled=true) where retention is managed by workspace retention policy
+  - CKV_AZURE_26   # Alert notification email addresses are org-specific - configured post-deployment by platform consumers
+  - CKV_AZURE_11   # AllowAzureServices firewall rule (0.0.0.0/0.0.0.0) required for Azure PaaS services connectivity
+  - CKV_AZURE_113  # Public network access required for GitHub-hosted CI/CD runners and Azure PaaS service connectivity
+  - CKV_AZURE_224  # SQL Database ledger not required for this workload type
+  - CKV_AZURE_229  # Zone redundancy not available on Basic SKU - intentional for cost optimization
+  - CKV2_AZURE_27  # Azure AD-only auth requires org-specific AD configuration - SQL auth maintained for platform flexibility
+  - CKV2_AZURE_34  # AllowAzureServices (0.0.0.0) required for Azure PaaS services and GitHub-hosted runners connectivity
+  - CKV2_AZURE_45  # Private endpoint not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration
+
+  # Service Bus
+  - CKV_AZURE_199  # Double encryption requires Premium SKU - using Standard for cost optimization
+  - CKV_AZURE_201  # Customer-managed key requires Premium SKU - using Standard for cost optimization
+  - CKV_AZURE_204  # Public network access required for GitHub-hosted CI/CD runners - no static IPs for private endpoints

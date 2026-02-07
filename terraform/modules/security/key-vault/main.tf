@@ -1,3 +1,7 @@
+#checkov:skip=CKV_AZURE_189:Public network access required for GitHub-hosted CI/CD runners
+#checkov:skip=CKV_AZURE_109:Network ACL default deny not possible with GitHub-hosted CI/CD runners
+#checkov:skip=CKV2_AZURE_32:Private endpoint not possible with GitHub-hosted CI/CD runners - no static IP for runner VNet integration
+#tfsec:ignore:azure-keyvault-specify-network-acl Network ACL default deny not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration
 resource "azurerm_key_vault" "main" {
   name                       = var.name
   location                   = var.location
@@ -5,8 +9,13 @@ resource "azurerm_key_vault" "main" {
   tenant_id                  = var.tenant_id
   sku_name                   = "standard"
   soft_delete_retention_days = 7
-  purge_protection_enabled   = false
+  purge_protection_enabled   = true
   rbac_authorization_enabled = true
+
+  network_acls {
+    bypass         = "AzureServices"
+    default_action = "Allow"
+  }
 
   tags = var.tags
 
@@ -45,11 +54,18 @@ resource "azurerm_role_assignment" "managed_identity_secrets_user" {
 }
 
 # Create secrets
+#checkov:skip=CKV_AZURE_41:Secret expiration managed via lifecycle ignore - rotated by platform operations
 resource "azurerm_key_vault_secret" "secrets" {
-  for_each     = var.secrets
-  name         = each.key
-  value        = each.value
-  key_vault_id = azurerm_key_vault.main.id
+  for_each        = var.secrets
+  name            = each.key
+  value           = each.value
+  key_vault_id    = azurerm_key_vault.main.id
+  content_type    = "text/plain"
+  expiration_date = timeadd(plantimestamp(), "8760h")
+
+  lifecycle {
+    ignore_changes = [expiration_date]
+  }
 
   depends_on = [time_sleep.wait_for_rbac]
 }

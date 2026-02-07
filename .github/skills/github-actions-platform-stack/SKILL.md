@@ -282,6 +282,8 @@ jobs:
     timeout-minutes: 60  # Increase from default 30
 ```
 
+## When to Use This Skill
+
 - Creating Terraform Plan workflows for PR validation
 - Implementing Terraform Apply workflows with feature flag checkboxes
 - Adding anti-pattern validation workflows (detect random_string, null checks, etc.)
@@ -462,7 +464,7 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           script: |
-            const output = `#### Terraform Plan 📖 \`${{ matrix.tenant }}-${{ matrix.environment }}\`
+            const output = `#### Terraform Plan \`${{ matrix.tenant }}-${{ matrix.environment }}\`
             <details><summary>Show Plan</summary>
 
             \`\`\`terraform

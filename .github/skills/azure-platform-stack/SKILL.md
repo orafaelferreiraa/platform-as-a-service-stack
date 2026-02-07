@@ -298,6 +298,8 @@ provider "azurerm" {
 4. read_file("terraform/modules/workloads/storage-account/main.tf") # Reference
 ```
 
+### Multi-Subscription Provider Architecture
+
 ```terraform
 # providers.tf
 provider "azurerm" {
@@ -436,9 +438,7 @@ terraform {
 - Still use Managed Identity where possible
 - Network security still required
 
-## Common Implementation Tasks
-
-### 1. Creating AKS Cluster
+### 2. Creating AKS Cluster
 
 **MCP workflow:**
 1. Search: "AKS private cluster terraform best practices"
@@ -501,7 +501,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 }
 ```
 
-### 2. Creating Storage Account
+### 3. Creating Storage Account
 
 **MCP workflow:**
 1. Search: "Azure storage account security best practices"
@@ -562,7 +562,7 @@ resource "azurerm_private_endpoint" "storage" {
 }
 ```
 
-### 3. Creating Key Vault
+### 4. Creating Key Vault
 
 **MCP workflow:**
 1. Search: "Azure Key Vault terraform security"

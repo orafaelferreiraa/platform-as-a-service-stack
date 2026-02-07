@@ -13,7 +13,7 @@ tools:
   - create_file
   - run_in_terminal
 model: Claude Sonnet 4
-infer: true
+user-invokable: true
 target: vscode
 handoffs:
   - label: Review Azure Configuration

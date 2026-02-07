@@ -1,7 +1,9 @@
 resource "azurerm_eventgrid_domain" "main" {
-  name                = var.name
-  location            = var.location
-  resource_group_name = var.resource_group_name
+  name                          = var.name
+  location                      = var.location
+  resource_group_name           = var.resource_group_name
+  public_network_access_enabled = false
+  local_auth_enabled            = false
 
   identity {
     type = "SystemAssigned"

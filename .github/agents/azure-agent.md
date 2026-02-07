@@ -10,7 +10,7 @@ tools:
   - semantic_search
   - multi_replace_string_in_file
 model: Claude Sonnet 4
-infer: true
+user-invokable: true
 target: vscode
 handoffs:
   - label: Generate Terraform Code
