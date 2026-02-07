@@ -13,6 +13,7 @@ resource "azurerm_storage_account" "main" {
   https_traffic_only_enabled      = true
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
+  public_network_access_enabled   = true # Required for GitHub-hosted CI/CD runners - no static IPs for private endpoints
 
   # Disable key-based authentication (Azure AD only)
   shared_access_key_enabled = false

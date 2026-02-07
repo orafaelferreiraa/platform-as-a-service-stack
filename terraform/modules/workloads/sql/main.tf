@@ -13,13 +13,14 @@ resource "random_password" "sql_admin" {
 #checkov:skip=CKV2_AZURE_27:Azure AD-only auth requires org-specific AD configuration - SQL auth maintained for platform flexibility
 #tfsec:ignore:azure-database-no-public-access Public access required for GitHub-hosted CI/CD runners and Azure PaaS service connectivity
 resource "azurerm_mssql_server" "main" {
-  name                         = var.server_name
-  location                     = var.location
-  resource_group_name          = var.resource_group_name
-  version                      = "12.0"
-  administrator_login          = var.administrator_login
-  administrator_login_password = random_password.sql_admin.result
-  minimum_tls_version          = "1.2"
+  name                          = var.server_name
+  location                      = var.location
+  resource_group_name           = var.resource_group_name
+  version                       = "12.0"
+  administrator_login           = var.administrator_login
+  administrator_login_password  = random_password.sql_admin.result
+  minimum_tls_version           = "1.2"
+  public_network_access_enabled = true # Required for GitHub-hosted CI/CD runners and Azure PaaS services
 
   identity {
     type = "SystemAssigned"
