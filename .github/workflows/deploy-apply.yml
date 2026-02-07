@@ -82,15 +82,15 @@ jobs:
       TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_name: ${{ inputs.name || 'default' }}
       # Feature flags as environment variables
-      TF_VAR_enable_managed_identity: ${{ inputs.enable_managed_identity || true }}
-      TF_VAR_enable_vnet: ${{ inputs.enable_vnet || true }}
-      TF_VAR_enable_observability: ${{ inputs.enable_observability || true }}
-      TF_VAR_enable_key_vault: ${{ inputs.enable_key_vault || true }}
-      TF_VAR_enable_storage: ${{ inputs.enable_storage || true }}
-      TF_VAR_enable_service_bus: ${{ inputs.enable_service_bus || true }}
-      TF_VAR_enable_event_grid: ${{ inputs.enable_event_grid || true }}
-      TF_VAR_enable_sql: ${{ inputs.enable_sql || true }}
-      TF_VAR_enable_container_apps: ${{ inputs.enable_container_apps || true }}
+      TF_VAR_enable_managed_identity: ${{ github.event_name == 'push' || inputs.enable_managed_identity }}
+      TF_VAR_enable_vnet: ${{ github.event_name == 'push' || inputs.enable_vnet }}
+      TF_VAR_enable_observability: ${{ github.event_name == 'push' || inputs.enable_observability }}
+      TF_VAR_enable_key_vault: ${{ github.event_name == 'push' || inputs.enable_key_vault }}
+      TF_VAR_enable_storage: ${{ github.event_name == 'push' || inputs.enable_storage }}
+      TF_VAR_enable_service_bus: ${{ github.event_name == 'push' || inputs.enable_service_bus }}
+      TF_VAR_enable_event_grid: ${{ github.event_name == 'push' || inputs.enable_event_grid }}
+      TF_VAR_enable_sql: ${{ github.event_name == 'push' || inputs.enable_sql }}
+      TF_VAR_enable_container_apps: ${{ github.event_name == 'push' || inputs.enable_container_apps }}
     
     defaults:
       run:
