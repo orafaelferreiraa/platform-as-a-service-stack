@@ -14,15 +14,9 @@ variable "resource_group_name" {
 }
 
 variable "managed_identity_id" {
-  description = "Principal ID of the managed identity for RBAC"
+  description = "Principal ID of the managed identity. When provided, RBAC roles are assigned automatically"
   type        = string
   default     = null
-}
-
-variable "enable_managed_identity_rbac" {
-  description = "Whether to create RBAC role assignments for managed identity"
-  type        = bool
-  default     = false
 }
 
 variable "sku" {

@@ -73,6 +73,23 @@ variable "sql_administrator_login" {
   default     = "sql_admin"
 }
 
+variable "enable_container_registry" {
+  description = "Enable Container Registry (ACR)"
+  type        = bool
+  default     = true
+}
+
+variable "container_registry_sku" {
+  description = "SKU of the Container Registry. Possible values: Basic, Standard, Premium"
+  type        = string
+  default     = "Basic"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.container_registry_sku)
+    error_message = "SKU must be Basic, Standard, or Premium."
+  }
+}
+
 variable "enable_container_apps" {
   description = "Enable Container Apps Environment"
   type        = bool
