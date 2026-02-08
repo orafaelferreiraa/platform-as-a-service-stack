@@ -72,6 +72,10 @@ terraform/
         ├── event-grid/     # Domain with subscriptions
         ├── sql/            # SQL Server + Database
         └── container-apps/ # Container Apps Environment
+
+# External Modules (pinned git refs — NOT in modules/ tree)
+# └── Container Registry (ACR)
+#     Source: git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2
 ```
 
 ---
@@ -148,6 +152,9 @@ locals {
   service_bus_namespace  = "sb-${local.name}-${local.location_abbr}"
   event_grid_domain      = "evgd-${local.name}-${local.location_abbr}"
   container_app_env      = "cae-${local.name}-${local.location_abbr}"
+  
+  # Globally unique (alphanumeric only — no hyphens, no dots)
+  container_registry     = "cr${local.name}${local.md5_suffix}"
 }
 ```
 
@@ -290,19 +297,44 @@ module "storage" {
   tags                           = var.tags
 }
 
-# Layer 3: Compute (hard requirements)
+# Layer 3: Container Registry (EXTERNAL module — pinned git ref)
+module "container_registry" {
+  count = var.enable_container_registry ? 1 : 0
+  
+  source                        = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+  name                          = module.naming.container_registry
+  location                      = var.location
+  resource_group_name           = module.resource_group.name
+  sku                           = var.container_registry_sku
+  managed_identity_principal_id = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  tags                          = var.tags
+}
+
+# Layer 4: Compute (hard requirements)
 module "container_apps" {
   count = var.enable_container_apps ? 1 : 0
   
-  source                       = "./modules/workloads/container-apps"
-  name                         = module.naming.container_app_env
-  location                     = var.location
-  resource_group_name          = module.resource_group.name
-  log_analytics_workspace_id   = module.observability[0].log_analytics_workspace_id  # REQUIRED
-  infrastructure_subnet_id     = var.enable_vnet ? module.vnet_spoke[0].container_apps_subnet_id : null
-  tags                         = var.tags
+  source                              = "./modules/workloads/container-apps"
+  name                                = module.naming.container_app_env
+  location                            = var.location
+  resource_group_name                 = module.resource_group.name
+  log_analytics_workspace_id          = module.observability[0].log_analytics_workspace_id  # REQUIRED
+  infrastructure_subnet_id            = var.enable_vnet ? module.vnet_spoke[0].container_apps_subnet_id : null
+  managed_identity_id                 = var.enable_managed_identity ? module.managed_identity[0].id : null
+  container_registry_login_server     = var.enable_container_registry ? module.container_registry[0].login_server : null
+  tags                                = var.tags
   
   depends_on = [module.observability]
+}
+
+# Composite output — zero-config for Container Apps consumers
+output "container_app_ready_config" {
+  description = "Pre-wired config for deploying containers (environment + identity + registry)"
+  value = var.enable_container_apps ? {
+    environment_id                  = module.container_apps[0].environment_id
+    managed_identity_id             = var.enable_managed_identity ? module.managed_identity[0].id : null
+    container_registry_login_server = var.enable_container_registry ? module.container_registry[0].login_server : null
+  } : null
 }
 ```
 
@@ -354,6 +386,23 @@ variable "enable_container_apps" {
   description = "Enable Container Apps Environment (REQUIRES enable_observability=true)"
   type        = bool
   default     = true
+}
+
+variable "enable_container_registry" {
+  description = "Enable Azure Container Registry (ACR) for container image storage"
+  type        = bool
+  default     = true
+}
+
+variable "container_registry_sku" {
+  description = "SKU for Container Registry (Basic, Standard, or Premium)"
+  type        = string
+  default     = "Basic"
+  
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.container_registry_sku)
+    error_message = "container_registry_sku must be Basic, Standard, or Premium"
+  }
 }
 ```
 
@@ -425,6 +474,21 @@ resource "azurerm_role_assignment" "current_admin_kv" {
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Administrator"
   principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# Container Registry — AcrPush + AcrPull auto-assigned to Managed Identity
+resource "azurerm_role_assignment" "mi_acr_push" {
+  name                 = uuidv5("dns", "${azurerm_container_registry.main.id}-${var.managed_identity_principal_id}-acrpush")
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPush"
+  principal_id         = var.managed_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "mi_acr_pull" {
+  name                 = uuidv5("dns", "${azurerm_container_registry.main.id}-${var.managed_identity_principal_id}-acrpull")
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPull"
+  principal_id         = var.managed_identity_principal_id
 }
 ```
 
@@ -513,6 +577,22 @@ mcp_hashicorp_ter_get_latest_provider_version(namespace: "hashicorp", name: "tim
 - **azurerm**: ~> 4.57.0
 - **random**: ~> 3.8.0
 - **time**: ~> 0.13.0
+
+### External Module Version Pinning
+**ALWAYS pin external modules to a specific git ref** — never use branch names or `HEAD`:
+
+```terraform
+# ✅ CORRECT - Pinned to specific tag
+source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+
+# ❌ WRONG - Floating branch (non-deterministic)
+source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=main"
+
+# ❌ WRONG - No ref at all
+source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry"
+```
+
+**Why?** External modules without pinned refs break reproducibility and can cause unexpected plan diffs.
 
 ---
 
@@ -832,6 +912,8 @@ enable_event_grid        = false
 enable_sql               = false
 enable_key_vault         = false
 enable_container_apps    = false
+enable_container_registry = true
+container_registry_sku    = "Basic"
 
 tags = {
   Project     = "Platform Stack"
@@ -889,6 +971,7 @@ done
 - **Storage Module**: [terraform/modules/workloads/storage-account/main.tf](../../terraform/modules/workloads/storage-account/main.tf)
 - **SQL Module**: [terraform/modules/workloads/sql/main.tf](../../terraform/modules/workloads/sql/main.tf)
 - **Key Vault Module**: [terraform/modules/security/key-vault/main.tf](../../terraform/modules/security/key-vault/main.tf)
+- **Container Registry Module (External)**: [tfmodules-as-a-service-stack/modules/azurerm_container_registry](https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack/tree/1.0.2/modules/azurerm_container_registry)
 
 ---
 

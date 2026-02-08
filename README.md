@@ -20,7 +20,8 @@ Azure infrastructure platform for accelerating product development through compo
 - **Foundation**: Resource Group (with `prevent_destroy`), Naming Convention, Managed Identity
 - **Networking**: VNet Spoke with default + delegated subnets for Container Apps
 - **Security**: Key Vault (RBAC-enabled), Managed Identity
-- **Workloads**: Storage Account (Azure AD only), Service Bus (Premium), Event Grid, SQL Server (AAD admin), Observability, Container Apps
+- **Workloads**: Storage Account (Azure AD only), Service Bus (Premium), Event Grid, SQL Server (AAD admin), Observability, Container Registry (ACR), Container Apps
+- **Zero-Config Integration**: Container Apps Environment ships with MI attached + ACR roles pre-wired — devs only set image name
 
 ---
 
@@ -90,7 +91,9 @@ All resources are controlled via boolean feature flags. Enable only what you nee
 | `enable_service_bus` | Service Bus Namespace | `true` | Uses: Managed Identity |
 | `enable_event_grid` | Event Grid Domain | `true` | Uses: Managed Identity, Service Bus |
 | `enable_sql` | SQL Server & Database | `true` | Uses: Managed Identity, VNet |
-| `enable_container_apps` | Container Apps Environment | `true` | **Requires**: Observability |
+| `enable_container_registry` | Container Registry (ACR) | `true` | Uses: Managed Identity |
+| `container_registry_sku` | Container Registry SKU | `"Basic"` | Basic, Standard, Premium |
+| `enable_container_apps` | Container Apps Environment | `true` | **Requires**: Observability; Uses: Container Registry, MI |
 
 ---
 
@@ -106,6 +109,7 @@ All resources are controlled via boolean feature flags. Enable only what you nee
 │      ⚠️  RECOMENDADO por: Storage, Service Bus, Event Grid, SQL, Key Vault  │
 │  🌐 VNet Spoke          - Opcional (enable_vnet)                             │
 │  📊 Observability       - Opcional (enable_observability)                    │
+│  📦 Container Registry  - Opcional (enable_container_registry)               │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -124,6 +128,8 @@ All resources are controlled via boolean feature flags. Enable only what you nee
 │  🔐 Key Vault                                                                │
 │      └── Usa: Managed Identity (RBAC)                                        │
 │      └── Armazena: SQL password (se enable_sql=true)                         │
+│  📦 Container Registry                                                       │
+│      └── Usa: Managed Identity (RBAC: AcrPush + AcrPull)                     │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -134,6 +140,8 @@ All resources are controlled via boolean feature flags. Enable only what you nee
 │  📦 Container Apps                                                           │
 │      └── REQUER: Observability (Log Analytics workspace_id)                  │
 │      └── Usa: VNet (infrastructure_subnet_id) [opcional]                     │
+│      └── Usa: Container Registry (login_server) [opcional]                   │
+│      └── Usa: Managed Identity (attached to Environment) [opcional]          │
 │      ⚠️  NÃO será criado se enable_observability = false                     │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -151,7 +159,8 @@ All resources are controlled via boolean feature flags. Enable only what you nee
 | Event Grid | Resource Group | Managed Identity, Service Bus | `enable_event_grid = true` |
 | SQL | Resource Group | Managed Identity, VNet | `enable_sql = true` |
 | Key Vault | Resource Group | Managed Identity, SQL* | `enable_key_vault = true` |
-| **Container Apps** | **Observability** | VNet | `enable_container_apps = true AND enable_observability = true` |
+| Container Registry | Resource Group | Managed Identity | `enable_container_registry = true` |
+| **Container Apps** | **Observability** | VNet, Container Registry, MI | `enable_container_apps = true AND enable_observability = true` |
 
 > \* Key Vault depends on SQL only to store the generated password. If `enable_sql = false`, Key Vault is created without secrets.
 
@@ -163,62 +172,82 @@ All resources are controlled via boolean feature flags. Enable only what you nee
 ```hcl
 name = "myplatform"
 # All enable_* flags default to true
+# Includes: MI, VNet, Observability, Key Vault, Storage, Service Bus, Event Grid, SQL, Container Registry, Container Apps
 ```
 
 ### Base Infrastructure Only
 ```hcl
 name = "myplatform"
-enable_managed_identity = false
-enable_vnet             = true
-enable_observability    = true
-enable_key_vault        = false
-enable_storage          = false
-enable_service_bus      = false
-enable_event_grid       = false
-enable_sql              = false
-enable_container_apps   = false
+enable_managed_identity   = false
+enable_vnet               = true
+enable_observability      = true
+enable_key_vault          = false
+enable_storage            = false
+enable_service_bus        = false
+enable_event_grid         = false
+enable_sql                = false
+enable_container_registry = false
+enable_container_apps     = false
 ```
 
 ### Messaging Only (Service Bus + Event Grid)
 ```hcl
 name = "myplatform"
-enable_managed_identity = true   # Recommended for RBAC
-enable_vnet             = false
-enable_observability    = false
-enable_key_vault        = false
-enable_storage          = false
-enable_service_bus      = true
-enable_event_grid       = true
-enable_sql              = false
-enable_container_apps   = false
+enable_managed_identity   = true   # Recommended for RBAC
+enable_vnet               = false
+enable_observability      = false
+enable_key_vault          = false
+enable_storage            = false
+enable_service_bus        = true
+enable_event_grid         = true
+enable_sql                = false
+enable_container_registry = false
+enable_container_apps     = false
 ```
 
 ### Database Only (SQL + Key Vault)
 ```hcl
 name = "myplatform"
-enable_managed_identity = true   # Recommended for RBAC
-enable_vnet             = false
-enable_observability    = false
-enable_key_vault        = true   # Stores SQL password
-enable_storage          = false
-enable_service_bus      = false
-enable_event_grid       = false
-enable_sql              = true
-enable_container_apps   = false
+enable_managed_identity   = true   # Recommended for RBAC
+enable_vnet               = false
+enable_observability      = false
+enable_key_vault          = true   # Stores SQL password
+enable_storage            = false
+enable_service_bus        = false
+enable_event_grid         = false
+enable_sql                = true
+enable_container_registry = false
+enable_container_apps     = false
 ```
 
 ### Container Apps (requires Observability)
 ```hcl
 name = "myplatform"
-enable_managed_identity = false
-enable_vnet             = true   # Optional but recommended
-enable_observability    = true   # REQUIRED for Container Apps
-enable_key_vault        = false
-enable_storage          = false
-enable_service_bus      = false
-enable_event_grid       = false
-enable_sql              = false
-enable_container_apps   = true
+enable_managed_identity   = true   # Recommended — MI attached to Environment + ACR RBAC
+enable_vnet               = true   # Optional but recommended
+enable_observability      = true   # REQUIRED for Container Apps
+enable_key_vault          = false
+enable_storage            = false
+enable_service_bus        = false
+enable_event_grid         = false
+enable_sql                = false
+enable_container_registry = true   # ACR pre-wired with MI (AcrPush + AcrPull)
+enable_container_apps     = true
+```
+
+### Container Registry Only
+```hcl
+name = "myplatform"
+enable_managed_identity   = true   # Recommended for RBAC
+enable_vnet               = false
+enable_observability      = false
+enable_key_vault          = false
+enable_storage            = false
+enable_service_bus        = false
+enable_event_grid         = false
+enable_sql                = false
+enable_container_registry = true
+enable_container_apps     = false
 ```
 
 ---
@@ -264,6 +293,14 @@ enable_container_apps   = true
 - **Current Principal**: Automatically granted Key Vault Administrator role via uuidv5
 - **No secret exposure**: Outputs only contain IDs and URIs, never secret values
 
+### Container Registry
+
+- **External Module**: Sourced from `tfmodules-as-a-service-stack` (`git::https://...?ref=1.0.2`)
+- **SKU**: Configurable via `container_registry_sku` (Basic, Standard, Premium) — default: Basic
+- **RBAC Roles**: When MI is enabled, AcrPush + AcrPull are automatically assigned to the platform Managed Identity
+- **Identity Attached**: MI resource ID attached to the registry itself (UserAssigned)
+- **Diagnostic Settings**: Automatically configured when Observability is enabled
+
 ### Container Apps
 
 - **Requires Observability**: Will not be created if `enable_observability = false` (validation enforced)
@@ -272,6 +309,8 @@ enable_container_apps   = true
 - **Lifecycle**: Uses `ignore_changes` on `workload_profile` to prevent unnecessary recreation
 - **Internal Load Balancer**: Enabled when infrastructure_subnet_id is provided
 - **Log Analytics**: Reference to workspace_id is required (comes from Observability module)
+- **Zero-Config for Devs**: MI is pre-attached to the Environment and ACR login_server is passed through — devs only need to reference the identity + image in their `azurerm_container_app`
+- **Output `container_app_ready_config`**: Composite output with everything needed to deploy a Container App (environment_id, MI, ACR)
 
 ## Naming Conventions
 
@@ -297,7 +336,8 @@ All resources follow [Microsoft Cloud Adoption Framework](https://learn.microsof
 | SQL Database | `sqldb-{name}-{region}` | `sqldb-myplatform-eus2` | Elastic pool compatible, diagnostic logging |
 | Log Analytics | `log-{name}-{region}` | `log-myplatform-eus2` | 30-day retention, workspace for diagnostic settings |
 | App Insights | `appi-{name}-{region}` | `appi-myplatform-eus2` | Type: web, linked to Log Analytics |
-| Container Apps Env | `cae-{name}-{region}-{md5}` | `cae-myplatform-eus2-abc1` | Requires Log Analytics, workload profile dynamic, /27 delegated subnet optional |
+| Container Registry | `cr{name}{region}{md5}` | `crmyplatformeus2abc1` | Alphanumeric only, ACR Push/Pull RBAC auto-assigned |
+| Container Apps Env | `cae-{name}-{region}-{md5}` | `cae-myplatform-eus2-abc1` | Requires Log Analytics, MI + ACR pre-wired, /27 delegated subnet optional |
 
 ---
 
@@ -324,13 +364,16 @@ All resources follow [Microsoft Cloud Adoption Framework](https://learn.microsof
 │ Networking  │ vnet-spoke                                 │
 │ Security    │ managed-identity, key-vault                │
 │ Workloads   │ storage, service-bus, event-grid,          │
-│             │ observability, sql, container-apps         │
+│             │ observability, sql, container-registry*,   │
+│             │ container-apps                             │
 └─────────────────────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────┐
 │                   Azure Resources                        │
 └─────────────────────────────────────────────────────────┘
+
+* container-registry sourced from tfmodules-as-a-service-stack (external module)
 ```
 
 ---
@@ -377,6 +420,7 @@ platform-as-a-service-stack/
 │   │       ├── observability/       # Log Analytics + App Insights
 │   │       ├── sql/                 # SQL Server & Database
 │   │       └── container-apps/      # Container Apps module
+│   │       # container-registry → external: tfmodules-as-a-service-stack
 │   ├── backend.tf                   # Remote state configuration
 │   ├── providers.tf                 # Provider configuration
 │   ├── main.tf                      # Root module orchestration
@@ -474,6 +518,7 @@ MIT License - see [LICENSE](LICENSE) for details
 | Name | Source | Version |
 |------|--------|---------|
 | <a name="module_container_apps"></a> [container\_apps](#module\_container\_apps) | ./modules/workloads/container-apps | n/a |
+| <a name="module_container_registry"></a> [container\_registry](#module\_container\_registry) | git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry | 1.0.2 |
 | <a name="module_event_grid"></a> [event\_grid](#module\_event\_grid) | ./modules/workloads/event-grid | n/a |
 | <a name="module_key_vault"></a> [key\_vault](#module\_key\_vault) | ./modules/security/key-vault | n/a |
 | <a name="module_managed_identity"></a> [managed\_identity](#module\_managed\_identity) | ./modules/security/managed-identity | n/a |
@@ -498,6 +543,8 @@ MIT License - see [LICENSE](LICENSE) for details
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_enable_container_apps"></a> [enable\_container\_apps](#input\_enable\_container\_apps) | Enable Container Apps Environment | `bool` | `true` | no |
+| <a name="input_enable_container_registry"></a> [enable\_container\_registry](#input\_enable\_container\_registry) | Enable Container Registry (ACR) | `bool` | `true` | no |
+| <a name="input_container_registry_sku"></a> [container\_registry\_sku](#input\_container\_registry\_sku) | SKU of the Container Registry. Possible values: Basic, Standard, Premium | `string` | `"Basic"` | no |
 | <a name="input_enable_event_grid"></a> [enable\_event\_grid](#input\_enable\_event\_grid) | Enable Event Grid | `bool` | `true` | no |
 | <a name="input_enable_key_vault"></a> [enable\_key\_vault](#input\_enable\_key\_vault) | Enable Key Vault | `bool` | `true` | no |
 | <a name="input_enable_managed_identity"></a> [enable\_managed\_identity](#input\_enable\_managed\_identity) | Enable Managed Identity (required by: Storage, Service Bus, Event Grid, SQL, Key Vault for RBAC) | `bool` | `true` | no |
@@ -520,6 +567,12 @@ MIT License - see [LICENSE](LICENSE) for details
 | <a name="output_application_insights_instrumentation_key"></a> [application\_insights\_instrumentation\_key](#output\_application\_insights\_instrumentation\_key) | Instrumentation key for Application Insights |
 | <a name="output_container_apps_environment_id"></a> [container\_apps\_environment\_id](#output\_container\_apps\_environment\_id) | ID of the Container Apps Environment |
 | <a name="output_container_apps_environment_name"></a> [container\_apps\_environment\_name](#output\_container\_apps\_environment\_name) | Name of the Container Apps Environment |
+| <a name="output_container_apps_environment_default_domain"></a> [container\_apps\_environment\_default\_domain](#output\_container\_apps\_environment\_default\_domain) | Default domain of the Container Apps Environment |
+| <a name="output_container_apps_environment_static_ip"></a> [container\_apps\_environment\_static\_ip](#output\_container\_apps\_environment\_static\_ip) | Static IP address of the Container Apps Environment |
+| <a name="output_container_app_ready_config"></a> [container\_app\_ready\_config](#output\_container\_app\_ready\_config) | Zero-config for Container Apps. MI attached to Environment with AcrPull/AcrPush on ACR |
+| <a name="output_container_registry_id"></a> [container\_registry\_id](#output\_container\_registry\_id) | ID of the Container Registry |
+| <a name="output_container_registry_name"></a> [container\_registry\_name](#output\_container\_registry\_name) | Name of the Container Registry |
+| <a name="output_container_registry_login_server"></a> [container\_registry\_login\_server](#output\_container\_registry\_login\_server) | Login server URL of the Container Registry |
 | <a name="output_event_grid_domain_id"></a> [event\_grid\_domain\_id](#output\_event\_grid\_domain\_id) | ID of the Event Grid domain |
 | <a name="output_key_vault_id"></a> [key\_vault\_id](#output\_key\_vault\_id) | ID of the Key Vault |
 | <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | URI of the Key Vault |

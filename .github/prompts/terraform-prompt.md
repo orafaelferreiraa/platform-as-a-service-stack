@@ -57,13 +57,23 @@ Read these instruction files:
 - **Provider Versions**: azurerm ~> 4.57.0, random ~> 3.8.0, time ~> 0.13.0
 - **Region**: eastus2 (hardcoded)
 - **State Backend**: Azure Blob Storage with `use_azuread_auth = true`
+- **External Modules**: Container Registry (ACR) sourced from `tfmodules-as-a-service-stack` repo
 
 ### Critical Patterns (Non-Negotiable)
 1. **Deterministic Naming**: `substr(md5(var.name), 0, 4)` - NEVER `random_string`
+   - Container Registry special naming: `cr{name}{region}{md5}` (no hyphens, alphanumeric only)
 2. **RBAC Role Assignments**: `name = uuidv5("dns", "${scope}-${principal}-{role}")` - NEVER omit
 3. **RBAC Propagation**: 180s `time_sleep` REQUIRED before secrets/containers
 4. **Count Conditions**: Boolean flags ONLY - NEVER `!= null` checks
 5. **Module Orchestration**: Root main.tf ONLY - NEVER inter-module dependencies
+6. **External Module Sourcing**: Pin to exact git ref - `git::https://...?ref=x.y.z`
+   - Container Registry uses external module: `git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2`
+
+### Feature Flags
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `enable_container_registry` | bool | `true` | Deploy Azure Container Registry |
+| `container_registry_sku` | string | `"Basic"` | ACR SKU tier (Basic, Standard, Premium) |
 
 ## 5. Task Execution
 
@@ -74,6 +84,23 @@ terraform/modules/workloads/${input:component-name}/
 ├── variables.tf    # name, location, tags, managed_identity_principal_id
 ├── outputs.tf      # IDs, URIs, names (NO secret values)
 ```
+
+### If Using External Module (e.g., Container Registry):
+External modules live in separate repos and are sourced via git ref:
+```hcl
+module "container_registry" {
+  count  = var.enable_container_registry ? 1 : 0
+  source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+
+  name     = module.naming.container_registry_name  # cr{name}{region}{md5}
+  location = var.location
+  tags     = local.common_tags
+  sku      = var.container_registry_sku
+}
+```
+- **RBAC**: AcrPush + AcrPull assigned to Managed Identity via `uuidv5("dns", "...")`
+- **Container Apps zero-config**: MI pre-attached + ACR `login_server` passed through
+- **Output**: `container_app_ready_config` composite output bundles MI + ACR for consumption
 
 **MANDATORY Module Pattern**:
 ```hcl
@@ -146,12 +173,15 @@ terraform plan -var-file=test.tfvars
 - ❌ NEVER create inter-module dependencies (orchestrate at root)
 - ❌ NEVER export secret values in outputs (only IDs/URIs)
 - ❌ NEVER use unpinned provider versions
+- ❌ NEVER inline external modules without pinned git ref
 - ✅ ALWAYS validate via MCP before generating code
 - ✅ ALWAYS use naming module outputs for resource names
 - ✅ ALWAYS use RBAC-first security (no shared keys)
 - ✅ ALWAYS add lifecycle prevent_destroy for critical resources
 - ✅ ALWAYS orchestrate modules in root main.tf only
 - ✅ ALWAYS run anti-pattern checks before submit
+- ✅ ALWAYS source Container Registry from external module (`tfmodules-as-a-service-stack`)
+- ✅ ALWAYS assign AcrPush + AcrPull RBAC to Managed Identity for Container Registry
   type        = string
 
   validation {

@@ -118,6 +118,8 @@ jobs:
             -var="enable_sql=${{ github.event.inputs.enable_sql || 'false' }}" \
             -var="enable_key_vault=${{ github.event.inputs.enable_key_vault || 'false' }}" \
             -var="enable_container_apps=${{ github.event.inputs.enable_container_apps || 'false' }}" \
+            -var="enable_container_registry=${{ github.event.inputs.enable_container_registry || 'true' }}" \
+            -var="container_registry_sku=${{ github.event.inputs.container_registry_sku || 'Basic' }}" \
             -no-color \
             -out=tfplan
       
@@ -221,6 +223,20 @@ on:
         description: 'Enable Container Apps (requires Observability)'
         type: boolean
         default: false
+      
+      enable_container_registry:
+        description: 'Enable Container Registry'
+        type: boolean
+        default: true
+      
+      container_registry_sku:
+        description: 'Container Registry SKU (Basic, Standard, Premium)'
+        type: choice
+        options:
+          - Basic
+          - Standard
+          - Premium
+        default: 'Basic'
 
 permissions:
   contents: read
@@ -272,6 +288,8 @@ jobs:
             -var="enable_sql=${{ github.event.inputs.enable_sql }}" \
             -var="enable_key_vault=${{ github.event.inputs.enable_key_vault }}" \
             -var="enable_container_apps=${{ github.event.inputs.enable_container_apps }}" \
+            -var="enable_container_registry=${{ github.event.inputs.enable_container_registry }}" \
+            -var="container_registry_sku=${{ github.event.inputs.container_registry_sku }}" \
             -out=tfplan
       
       - name: Terraform Apply

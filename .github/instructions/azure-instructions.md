@@ -89,9 +89,10 @@ locals {
   suffix          = substr(md5(local.name), 0, 4)
   
   # Globally unique resources
-  storage_account = "st${replace(local.name, "-", "")}${local.location_abbr}${local.suffix}"
-  key_vault       = "kv-${local.name}-${local.location_abbr}-${local.suffix}"
-  sql_server      = "sql-${local.name}-${local.location_abbr}-${local.suffix}"
+  storage_account    = "st${replace(local.name, "-", "")}${local.location_abbr}${local.suffix}"
+  key_vault          = "kv-${local.name}-${local.location_abbr}-${local.suffix}"
+  sql_server         = "sql-${local.name}-${local.location_abbr}-${local.suffix}"
+  container_registry = "cr${replace(local.name, "-", "")}${local.location_abbr}${local.suffix}"  # No hyphens/dots allowed
   
   # Regional resources
   resource_group  = "rg-${local.name}-${local.location_abbr}"
@@ -240,6 +241,45 @@ mcp_hashicorp_ter_get_provider_details(namespace: "hashicorp", name: "azurerm", 
 - **Workload Profile**: REQUIRED when using delegated subnet
 - Lifecycle: `ignore_changes = [workload_profile]` (Kubernetes modifies externally)
 - Internal load balancer when `infrastructure_subnet_id` provided
+- **Container Registry integration**: When ACR is enabled, MI is pre-attached to Container Apps Environment and `login_server` is passed through for zero-config image pulling
+
+### Container Registry (ACR)
+**MCP Research**:
+```bash
+microsoft_docs_search(query: "Azure Container Registry SKU comparison RBAC")
+mcp_hashicorp_ter_get_provider_details(namespace: "hashicorp", name: "azurerm", type: "azurerm_container_registry")
+```
+
+**Implementation**:
+- **Source**: External module from `tfmodules-as-a-service-stack` repository
+- **Naming**: `cr{name}{region}{md5}` (e.g., `crmyplatformeus2abc1`) — **no hyphens, no dots** (Azure ACR restriction)
+- **SKU**: Configurable via `container_registry_sku` variable (`Basic`, `Standard`, or `Premium`; default `Basic`)
+- **Feature flag**: `enable_container_registry` (bool, default `true`)
+- **RBAC roles** (auto-assigned to Managed Identity via `uuidv5()`):
+  - `AcrPush` — allows pushing images
+  - `AcrPull` — allows pulling images
+- **Container Apps zero-config**: When both ACR and Container Apps are enabled:
+  - Managed Identity is pre-attached to the Container Apps Environment
+  - ACR `login_server` is passed through as an output for image references
+- **Dependency**: Requires Resource Group. Optionally depends on Managed Identity for RBAC assignments.
+- **Admin access**: Disabled (`admin_enabled = false`); use RBAC exclusively
+
+**RBAC Pattern**:
+```terraform
+resource "azurerm_role_assignment" "mi_acr_push" {
+  name                 = uuidv5("dns", "${azurerm_container_registry.main.id}-${var.managed_identity_principal_id}-acr-push")
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPush"
+  principal_id         = var.managed_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "mi_acr_pull" {
+  name                 = uuidv5("dns", "${azurerm_container_registry.main.id}-${var.managed_identity_principal_id}-acr-pull")
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPull"
+  principal_id         = var.managed_identity_principal_id
+}
+```
 
 ---
 
@@ -269,7 +309,8 @@ resource "null_resource" "validate_container_apps" {
 | Event Grid | - | Managed Identity, Service Bus | `enable_event_grid` |
 | SQL Server | - | Managed Identity, VNet | `enable_sql` |
 | Key Vault | SQL (if enabled) | Managed Identity | `enable_key_vault` |
-| Container Apps | **Observability** | VNet | `enable_container_apps` |
+| Container Registry | - | Managed Identity (RBAC) | `enable_container_registry` (default `true`), `container_registry_sku` (default `"Basic"`) |
+| Container Apps | **Observability** | VNet, Container Registry | `enable_container_apps` |
 
 ---
 
@@ -472,6 +513,7 @@ resource "azurerm_container_app_environment" "main" {
 - **Storage Pattern**: [terraform/modules/workloads/storage-account/main.tf](../../terraform/modules/workloads/storage-account/main.tf)
 - **SQL Pattern**: [terraform/modules/workloads/sql/main.tf](../../terraform/modules/workloads/sql/main.tf)
 - **Key Vault Pattern**: [terraform/modules/security/key-vault/main.tf](../../terraform/modules/security/key-vault/main.tf)
+- **Container Registry Module**: [tfmodules-as-a-service-stack/modules/azurerm_container_registry/main.tf](../../../tfmodules-as-a-service-stack/modules/azurerm_container_registry/main.tf)
 
 ### Features Block Configuration
 **Always include appropriate features** based on resource types:
@@ -729,6 +771,7 @@ Before submitting Azure infrastructure code:
 - [ ] Private endpoints for data services
 - [ ] Secrets in Key Vault (not hardcoded)
 - [ ] RBAC with least privilege
+- [ ] Container Registry: no hyphens/dots in name, admin disabled, AcrPush+AcrPull via RBAC
 - [ ] Network security rules reviewed
 - [ ] Region and SKU validated
 - [ ] `terraform validate` passed

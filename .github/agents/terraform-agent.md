@@ -128,12 +128,24 @@ variable "enable_storage" {
   type    = bool
   default = true
 }
+
+variable "enable_container_registry" {
+  type    = bool
+  default = true
+}
+
+variable "container_registry_sku" {
+  type    = string
+  default = "Basic"
+}
 ```
 
 **Count conditions are boolean-only**:
 ```hcl
 count = var.enable_storage ? 1 : 0
 ```
+
+> **Note:** Some modules (e.g., Container Registry / ACR) are external, sourced via git from the `tfmodules-as-a-service-stack` repo using `?ref=1.0.2`. They follow the same feature-flag pattern — `enable_container_registry` controls creation, `container_registry_sku` selects the SKU (default `"Basic"`). The ACR module uses Managed Identity for RBAC (`AcrPush` + `AcrPull`), applies the naming convention `cr{name}{region}{md5}`, and exposes the `login_server` to Container Apps for zero-config image pulling. A composite output `container_app_ready_config` bundles the MI + ACR login server so Container Apps gets everything pre-attached.
 
 ### 3. Module Development Standards
 
@@ -144,6 +156,15 @@ terraform/modules/<domain>/<module-name>/
 ├── variables.tf     # Input parameters
 ├── outputs.tf       # IDs/URIs only (no secrets)
 ```
+
+> **External modules** (e.g., Container Registry) can live in a separate repo such as `tfmodules-as-a-service-stack` and be sourced via git:
+> ```hcl
+> module "container_registry" {
+>   source = "git::https://github.com/<org>/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+>   # ...
+> }
+> ```
+> External modules still follow the same structure (`main.tf`, `variables.tf`, `outputs.tf`) and adhere to all naming, RBAC, and output standards described here.
 
 **Module output pattern** (return both object and JSON):
 ```terraform

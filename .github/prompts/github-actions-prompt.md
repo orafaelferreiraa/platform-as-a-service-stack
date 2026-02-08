@@ -120,6 +120,8 @@ jobs:
           terraform plan \
             -var="name=testplatform" \
             -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="enable_container_registry=${{ github.event.inputs.enable_container_registry }}" \
+            -var="container_registry_sku=${{ github.event.inputs.container_registry_sku }}" \
             -no-color \
             -out=tfplan
       
@@ -266,12 +268,61 @@ grep -n "paths:" .github/workflows/*.yml
 - ✅ ALWAYS add environment protection for production
 - ✅ ALWAYS include anti-pattern validation
 - ✅ ALWAYS use workflow_dispatch with declarative inputs
-- ✅ ALWAYS upload outputs as artifactsvent.inputs.enable_service_bus }}" \
+- ✅ ALWAYS upload outputs as artifacts
+
+### Terraform Apply/Plan with Feature Flags (`workflow_dispatch` inputs)
+
+#### Workflow Dispatch Inputs
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      enable_service_bus:
+        description: "Enable Service Bus"
+        type: boolean
+        default: true
+      enable_event_grid:
+        description: "Enable Event Grid"
+        type: boolean
+        default: true
+      enable_sql:
+        description: "Enable SQL Database"
+        type: boolean
+        default: true
+      enable_key_vault:
+        description: "Enable Key Vault"
+        type: boolean
+        default: true
+      enable_container_apps:
+        description: "Enable Container Apps"
+        type: boolean
+        default: true
+      enable_container_registry:
+        description: "Enable Container Registry (ACR)"
+        type: boolean
+        default: true
+      container_registry_sku:
+        description: "Container Registry SKU"
+        type: choice
+        default: "Basic"
+        options:
+          - Basic
+          - Standard
+          - Premium
+```
+
+#### Feature Flag `-var` Flags
+```yaml
+          terraform plan \
+            -var="enable_service_bus=${{ github.event.inputs.enable_service_bus }}" \
             -var="enable_event_grid=${{ github.event.inputs.enable_event_grid }}" \
             -var="enable_sql=${{ github.event.inputs.enable_sql }}" \
             -var="enable_key_vault=${{ github.event.inputs.enable_key_vault }}" \
             -var="enable_container_apps=${{ github.event.inputs.enable_container_apps }}" \
+            -var="enable_container_registry=${{ github.event.inputs.enable_container_registry }}" \
+            -var="container_registry_sku=${{ github.event.inputs.container_registry_sku }}" \
             -out=tfplan
+```
       
       - name: Terraform Apply
         if: github.event.inputs.action == 'apply' || github.event_name == 'push'

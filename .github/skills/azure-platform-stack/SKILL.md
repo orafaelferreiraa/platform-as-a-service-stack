@@ -125,7 +125,8 @@ locals {
   # Resource naming outputs from naming module
   storage_account = "st${local.name}${local.md5_suffix}"  # "stmyplatforma1b2"
   key_vault       = "kv-${local.name}-${local.location_abbr}-${local.md5_suffix}"  # "kv-myplatform-eus2-a1b2"
-  sql_server      = "sql-${local.name}-${local.location_abbr}-${local.md5_suffix}"  # "sql-myplatform-eus2-a1b2"
+  sql_server          = "sql-${local.name}-${local.location_abbr}-${local.md5_suffix}"  # "sql-myplatform-eus2-a1b2"
+  container_registry  = "cr${local.name}${local.md5_suffix}"  # "crmyplatforma1b2"
 }
 ```
 
@@ -247,7 +248,8 @@ resource "null_resource" "validate_container_apps" {
 | `enable_event_grid` | Event Grid | - | Managed Identity, Service Bus |
 | `enable_sql` | SQL Server | - | Managed Identity, VNet |
 | `enable_key_vault` | Key Vault | SQL (for password) | Managed Identity |
-| `enable_container_apps` | Container Apps | **Observability** | VNet |
+| `enable_container_registry` | Container Registry | - | Managed Identity (RBAC) | `enable_container_registry = true` |
+| `enable_container_apps` | Container Apps | **Observability** | VNet, Container Registry + MI | `enable_container_apps = true` |
 
 ### Provider Configuration Standards
 
@@ -297,6 +299,106 @@ provider "azurerm" {
 3. mcp_hashicorp_ter_get_provider_details("hashicorp/azurerm/azurerm_storage_account")
 4. read_file("terraform/modules/workloads/storage-account/main.tf") # Reference
 ```
+
+### 2. Creating Container Registry Module (External)
+
+**Source**: External module from `tfmodules-as-a-service-stack`
+
+**MCP workflow:**
+```
+1. microsoft_docs_search("Azure Container Registry security best practices")
+2. microsoft_code_sample_search("azurerm_container_registry", language="terraform")
+3. mcp_hashicorp_ter_get_provider_details("hashicorp/azurerm/azurerm_container_registry")
+4. read_file("terraform/modules/workloads/container-apps/main.tf") # Reference for MI integration
+```
+
+**Module source:**
+```hcl
+module "container_registry" {
+  source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+  count  = var.enable_container_registry ? 1 : 0
+
+  name                = module.naming.container_registry  # "cr{name}{md5}" e.g. "crmyplatformeus2abc1"
+  resource_group_name = module.resource_group.name
+  location            = module.resource_group.location
+  sku                 = var.container_registry_sku  # "Basic" | "Standard" | "Premium"
+}
+```
+
+**Feature flags:**
+```hcl
+variable "enable_container_registry" {
+  description = "Enable Azure Container Registry"
+  type        = bool
+  default     = true
+}
+
+variable "container_registry_sku" {
+  description = "SKU for Container Registry"
+  type        = string
+  default     = "Basic"
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.container_registry_sku)
+    error_message = "container_registry_sku must be Basic, Standard, or Premium."
+  }
+}
+```
+
+**Managed Identity RBAC (auto-assigned):**
+```hcl
+# AcrPush - allows MI to push images
+resource "azurerm_role_assignment" "mi_acr_push" {
+  count                = var.enable_container_registry && var.enable_managed_identity ? 1 : 0
+  name                 = uuidv5("dns", "${module.container_registry[0].id}-${module.managed_identity[0].principal_id}-acr-push")
+  scope                = module.container_registry[0].id
+  role_definition_name = "AcrPush"
+  principal_id         = module.managed_identity[0].principal_id
+}
+
+# AcrPull - allows MI to pull images
+resource "azurerm_role_assignment" "mi_acr_pull" {
+  count                = var.enable_container_registry && var.enable_managed_identity ? 1 : 0
+  name                 = uuidv5("dns", "${module.container_registry[0].id}-${module.managed_identity[0].principal_id}-acr-pull")
+  scope                = module.container_registry[0].id
+  role_definition_name = "AcrPull"
+  principal_id         = module.managed_identity[0].principal_id
+}
+```
+
+**Container Apps zero-config integration:**
+```hcl
+# MI is pre-attached to Container Apps Environment
+# ACR login_server is passed through automatically
+module "container_apps" {
+  source = "./modules/workloads/container-apps"
+  count  = var.enable_container_apps ? 1 : 0
+
+  # ... other config ...
+  managed_identity_id   = var.enable_managed_identity ? module.managed_identity[0].id : null
+  container_registry_url = var.enable_container_registry ? module.container_registry[0].login_server : null
+}
+```
+
+**New composite output:**
+```hcl
+output "container_app_ready_config" {
+  description = "Composite config for Container Apps with ACR and MI pre-wired"
+  value = var.enable_container_apps ? {
+    environment_id          = module.container_apps[0].environment_id
+    managed_identity_id     = var.enable_managed_identity ? module.managed_identity[0].id : null
+    container_registry_url  = var.enable_container_registry ? module.container_registry[0].login_server : null
+    container_registry_name = var.enable_container_registry ? module.container_registry[0].name : null
+    rbac_roles_assigned     = var.enable_container_registry && var.enable_managed_identity ? ["AcrPush", "AcrPull"] : []
+  } : null
+}
+```
+
+**Key points:**
+- External module: pinned at `ref=1.0.2` from `tfmodules-as-a-service-stack`
+- Naming: `cr{name}{region}{md5}` (no hyphens — Azure ACR doesn't allow them)
+- RBAC: AcrPush + AcrPull auto-assigned to Managed Identity via uuidv5
+- Container Apps: MI pre-attached to Environment + ACR `login_server` passed through (zero-config pull)
+- SKU validation: only `Basic`, `Standard`, or `Premium` accepted
 
 ### Multi-Subscription Provider Architecture
 

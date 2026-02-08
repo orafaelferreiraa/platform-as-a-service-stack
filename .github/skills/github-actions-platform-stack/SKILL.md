@@ -157,6 +157,20 @@ on:
         description: 'Enable Container Apps'
         type: boolean
         default: false
+      
+      enable_container_registry:
+        description: 'Enable Container Registry (ACR)'
+        type: boolean
+        default: true
+      
+      container_registry_sku:
+        description: 'Container Registry SKU'
+        type: choice
+        default: 'Basic'
+        options:
+          - Basic
+          - Standard
+          - Premium
 
 jobs:
   terraform-apply:
@@ -192,6 +206,8 @@ jobs:
             -var="enable_sql=${{ github.event.inputs.enable_sql }}" \
             -var="enable_key_vault=${{ github.event.inputs.enable_key_vault }}" \
             -var="enable_container_apps=${{ github.event.inputs.enable_container_apps }}" \
+            -var="enable_container_registry=${{ github.event.inputs.enable_container_registry }}" \
+            -var="container_registry_sku=${{ github.event.inputs.container_registry_sku }}" \
             -out=tfplan
       
       - name: Terraform Apply
@@ -285,7 +301,7 @@ jobs:
 ## When to Use This Skill
 
 - Creating Terraform Plan workflows for PR validation
-- Implementing Terraform Apply workflows with feature flag checkboxes
+- Implementing Terraform Apply workflows with feature flag checkboxes (including Container Registry with SKU selection)
 - Adding anti-pattern validation workflows (detect random_string, null checks, etc.)
 - Debugging Azure authentication failures (ARM_USE_AZUREAD)
 - Setting up environment protection with manual approval (production)

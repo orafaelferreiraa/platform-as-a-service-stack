@@ -16,6 +16,7 @@ Develops, validates, and fixes Azure infrastructure code. **Agent makes decision
 - **Validates all Terraform** against hard rules in [instructions.instructions.md](instructions.instructions.md)
 - **Troubleshoots Azure errors** using MCP queries for Terraform provider documentation
 - **Maintains consistency** - all code follows single-concern pattern, no inter-module dependencies
+- **Integrates Container Registry (ACR)** with zero-config Container Apps — MI pre-attached, ACR login_server passed through, devs deploy without manual RBAC or registry setup
 
 ---
 
@@ -29,6 +30,8 @@ Develops, validates, and fixes Azure infrastructure code. **Agent makes decision
 - Reviewing code for anti-patterns (random UUIDs, null checks, missing time_sleep, etc.)
 - SQL Diagnostic Settings with correct categories
 - Container Apps VNet integration with workload profiles
+- Container Registry (ACR) configuration with feature flags (`enable_container_registry`, `container_registry_sku`)
+- Zero-config Container Apps integration (MI + ACR login_server auto-wired via `container_app_ready_config` output)
 
 ❌ **NOT for:**
 - General Terraform tutorials or Azure basics
@@ -141,6 +144,7 @@ USER: "ManagedEnvironmentSubnetIsDelegated error"
 6. **Count**: ONLY boolean flags (`enable_*`), NEVER null checks (`!= null`)
 7. **Outputs**: NEVER secrets → IDs and URIs ONLY
 8. **Validation**: ALWAYS `terraform validate` + `terraform plan` after changes
+9. **External Modules**: Container Registry is sourced from `tfmodules-as-a-service-stack` (`git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2`) — pin version via `?ref=`, never use unversioned git sources
 
 ---
 
@@ -307,6 +311,8 @@ USER: "ManagedEnvironmentSubnetIsDelegated error"
 | [terraform/modules/foundation/naming/main.tf](terraform/modules/foundation/naming/main.tf) | MD5 naming |
 | [terraform/modules/security/key-vault/main.tf](terraform/modules/security/key-vault/main.tf) | RBAC + time_sleep |
 | [terraform/modules/workloads/storage-account/main.tf](terraform/modules/workloads/storage-account/main.tf) | Storage pattern |
+| [terraform/modules/workloads/container-apps/main.tf](terraform/modules/workloads/container-apps/main.tf) | Container Apps + MI pre-attached + ACR login_server |
+| External: `azurerm_container_registry` ([tfmodules-as-a-service-stack](https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack)) | ACR module (naming: `cr{name}{region}{md5}`, RBAC: AcrPush + AcrPull via MI) |
 
 ---
 

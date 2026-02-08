@@ -53,7 +53,14 @@ Use semantic_search and grep_search:
 - **Region**: `eastus2` (hardcoded, not configurable)
 - **Location Abbreviation**: `eus2`
 - **Naming Convention**: `{name}-{location_abbr}-{md5_suffix}`
+  - **Container Registry exception**: `cr{name}{region}{md5}` (no hyphens/dots — e.g., `crmyplatformeus2abc1`)
 - **Provider**: azurerm ~> 4.57.0 with `storage_use_azuread = true`
+
+### Managed Services
+- Resource Group, Key Vault, Managed Identity, Storage Account, SQL, Service Bus, Event Grid, Observability, Container Apps, **Container Registry (ACR)**
+- **Container Registry**: SKU `Basic` / `Standard` / `Premium`; feature flags `enable_container_registry` (bool, default `true`) and `container_registry_sku` (string, default `"Basic"`)
+- **ACR Dependencies**: Requires Resource Group. Optionally depends on Managed Identity (for AcrPush + AcrPull RBAC).
+- **Container Apps zero-config**: Managed Identity is pre-attached and ACR `login_server` is passed through so workloads pull images without manual registry config.
 
 ### Critical Patterns
 1. **Deterministic Naming**: `substr(md5(var.name), 0, 4)` - NEVER `random_string`
@@ -76,7 +83,7 @@ Use semantic_search and grep_search:
    ├── variables.tf    # name, location, tags, managed_identity_principal_id
    ├── outputs.tf      # id, name, endpoints (NO secrets)
    ```
-4. **Add feature flag**:
+4. **Add feature flag(s)**:
    ```hcl
    # terraform/variables.tf
    variable "enable_${input:resource-type}" {
@@ -84,6 +91,12 @@ Use semantic_search and grep_search:
      type        = bool
      default     = true
    }
+   # For Container Registry, also add:
+   # variable "container_registry_sku" {
+   #   description = "SKU for the Container Registry (Basic, Standard, Premium)"
+   #   type        = string
+   #   default     = "Basic"
+   # }
    ```
 5. **Orchestrate in root main.tf**:
    ```hcl
@@ -160,6 +173,14 @@ resource "azurerm_${input:resource-type}_secret" "example" {
    - **Cause**: Using `!= null` in count condition
    - **Solution**: Use boolean flag: `count = var.enable_X ? 1 : 0`
 
+5. **"AdminUserDisabled" or ACR 401 Unauthorized on image pull**
+   - **Cause**: Container Registry admin user disabled (correct) but Managed Identity missing AcrPull role
+   - **Solution**: Ensure `azurerm_role_assignment` grants `AcrPull` (+ `AcrPush` for CI) to the Managed Identity, with 180s `time_sleep`
+
+6. **Container Registry name validation error ("must be alphanumeric")**
+   - **Cause**: ACR names cannot contain hyphens, dots, or underscores
+   - **Solution**: Use the `cr{name}{region}{md5}` naming pattern — e.g., `crmyplatformeus2abc1`
+
 **Debugging Steps**:
 1. Search Microsoft Docs via MCP for error message
 2. Check provider configuration in terraform/providers.tf
@@ -205,10 +226,12 @@ terraform plan
 /azure key-vault troubleshoot "does not have secrets get permission"
 /azure container-apps add-workload-profile
 /azure sql debug-diagnostic-settings
+/azure container-registry implement
+/azure container-registry troubleshoot "AdminUserDisabled"
 ```
 
 ## Variables Available
-- `${input:resource-type}` - Azure resource (storage-account, key-vault, sql, container-apps)
+- `${input:resource-type}` - Azure resource (storage-account, key-vault, sql, container-apps, container-registry)
 - `${input:operation}` - Operation: implement, troubleshoot, debug, add-feature
 - `${selection}` - Selected code/text in editor
 - `${file}` - Current file path
@@ -224,3 +247,5 @@ terraform plan
 - ✅ ALWAYS use RBAC-first security (no shared keys)
 - ✅ ALWAYS add lifecycle prevent_destroy for critical resources
 - ✅ ALWAYS export IDs/URIs only (never secret values)
+- ✅ ALWAYS use `enable_container_registry` + `container_registry_sku` flags for ACR
+- ✅ ALWAYS assign AcrPush + AcrPull to Managed Identity for Container Registry

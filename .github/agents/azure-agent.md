@@ -92,10 +92,11 @@ Specialized in Azure resource provisioning for the **Platform as a Service Stack
 
 ```terraform
 locals {
-   name       = lower(var.name)
-   md5_suffix = substr(md5(local.name), 0, 4)
-   location   = "eastus2"
-   abbr       = "eus2"
+   name               = lower(var.name)
+   md5_suffix         = substr(md5(local.name), 0, 4)
+   location           = "eastus2"
+   abbr               = "eus2"
+   container_registry = "cr${local.name}${local.abbr}${local.md5_suffix}"
 }
 ```
 
@@ -108,6 +109,15 @@ locals {
 
 ### 3. Feature Flags and Dependencies
 **Hard requirement**: Container Apps requires Observability (`enable_observability = true`)
+
+**Container Registry (ACR)**:
+- Flag: `enable_container_registry` (default: `true`), SKU: `container_registry_sku` (default: `"Basic"`)
+- External module from `tfmodules-as-a-service-stack` (`git::https://...?ref=1.0.2`)
+- Naming: `cr{name}{region}{md5}` (no hyphens — ACR requirement)
+- Managed Identity RBAC: `AcrPush` + `AcrPull` auto-assigned to the platform MI
+- **Zero-config for devs**: Container Apps gets the MI pre-attached + ACR `login_server` via `container_app_ready_config` output
+
+**Container Apps dependency chain**: Observability + Container Registry + Managed Identity → Container Apps (fully wired)
 
 ### 4. Provider Configuration
 **Mandatory**: `storage_use_azuread = true` (data-plane auth for Storage)

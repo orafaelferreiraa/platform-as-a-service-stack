@@ -136,6 +136,18 @@ terraform/modules/{domain}/{resource}/
 ├── outputs.tf      # IDs, URIs, names (NO secret values)
 ```
 
+**Workloads include**:
+```
+└── workloads/
+    ├── observability/      # Log Analytics + App Insights
+    ├── storage-account/    # RBAC-only storage
+    ├── service-bus/        # Premium namespace
+    ├── event-grid/         # Domain with subscriptions
+    ├── sql/                # SQL Server + Database
+    └── container-apps/     # Container Apps Environment
+        # container-registry → external: tfmodules-as-a-service-stack
+```
+
 **Root orchestration ONLY** (terraform/main.tf):
 ```hcl
 module "storage" {
@@ -195,6 +207,28 @@ module "container_apps" {
 
 **Rule**: Count conditions ONLY accept boolean variables. NO null checks, NO string comparisons.
 
+### Feature Flag Table
+
+| Flag | Resource | Hard Dependency | Recommended Dependency |
+|------|----------|----------------|------------------------|
+| `enable_managed_identity` | Managed Identity | - | **Used by all workloads for RBAC** |
+| `enable_vnet` | VNet Spoke | - | Used by Storage, SQL, Container Apps |
+| `enable_observability` | Log Analytics + App Insights | - | **REQUIRED by Container Apps** |
+| `enable_storage` | Storage Account | - | Managed Identity (RBAC), VNet |
+| `enable_service_bus` | Service Bus | - | Managed Identity |
+| `enable_event_grid` | Event Grid | - | Managed Identity, Service Bus |
+| `enable_sql` | SQL Server | - | Managed Identity, VNet |
+| `enable_key_vault` | Key Vault | SQL (for password) | Managed Identity |
+| `enable_container_registry` | Container Registry (ACR) | - | Managed Identity (AcrPush + AcrPull) |
+| `enable_container_apps` | Container Apps | **Observability** | VNet, Container Registry + MI |
+
+**Container Registry Details**:
+- **Source**: External module from `tfmodules-as-a-service-stack` (`git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2`)
+- **SKU**: Controlled by `container_registry_sku` (string, default `"Basic"`)
+- **RBAC**: When `enable_managed_identity = true`, AcrPush + AcrPull roles are auto-assigned to the Managed Identity
+- **Container Apps Integration**: When both `enable_container_registry` and `enable_managed_identity` are true, Container Apps receives MI pre-attached + ACR `login_server`
+- **Output**: `container_app_ready_config` — composite zero-config output bundling MI + ACR login server for Container Apps
+
 ### Deterministic Patterns
 
 **1. MD5 Naming (NOT random_string)**:
@@ -212,6 +246,15 @@ locals {
 locals {
   md5_suffix = substr(md5(var.name), 0, 4)  # Same input = same output
   name       = "${var.name}-${local.md5_suffix}"
+}
+
+# Platform Stack naming locals (from naming module)
+locals {
+  storage_account    = "st${replace(local.name, "-", "")}${local.location_abbr}${local.suffix}"
+  key_vault          = "kv-${local.name}-${local.location_abbr}-${local.suffix}"
+  sql_server         = "sql-${local.name}-${local.location_abbr}-${local.suffix}"
+  container_app_env  = "cae-${local.name}-${local.location_abbr}"
+  container_registry = "cr${local.name}${local.location_abbr}${local.suffix}"  # e.g., "crmyplatformeus2abc1"
 }
 ```
 
