@@ -74,6 +74,7 @@ module "storage_account" {
   name                       = module.naming.storage_account
   location                   = var.location
   resource_group_name        = module.resource_group.name
+  enable_managed_identity    = var.enable_managed_identity
   managed_identity_id        = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
   vnet_subnet_ids            = var.enable_vnet ? [module.vnet_spoke[0].default_subnet_id] : []
   tags                       = local.base_tags
@@ -88,6 +89,7 @@ module "service_bus" {
   name                       = module.naming.service_bus
   location                   = var.location
   resource_group_name        = module.resource_group.name
+  enable_managed_identity    = var.enable_managed_identity
   managed_identity_id        = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
   tags                       = local.base_tags
   enable_observability       = var.enable_observability
@@ -133,6 +135,7 @@ module "key_vault" {
   resource_group_name  = module.resource_group.name
   tenant_id            = data.azurerm_client_config.current.tenant_id
   current_principal_id = data.azurerm_client_config.current.object_id
+  enable_managed_identity = var.enable_managed_identity
   managed_identity_id  = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
   secrets = var.enable_sql ? {
     "sql-admin-password" = module.sql[0].admin_password
@@ -147,11 +150,12 @@ module "key_vault" {
 # Workloads: Container Registry (optional) - RBAC auto-configured when MI is provided
 module "container_registry" {
   count                      = var.enable_container_registry ? 1 : 0
-  source                     = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.0"
+  source                     = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.1"
   name                       = module.naming.container_registry
   location                   = var.location
   resource_group_name        = module.resource_group.name
   sku                        = var.container_registry_sku
+  enable_managed_identity    = var.enable_managed_identity
   managed_identity_id        = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
   tags                       = local.base_tags
   enable_observability       = var.enable_observability

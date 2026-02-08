@@ -13,6 +13,12 @@ variable "resource_group_name" {
   type        = string
 }
 
+variable "enable_managed_identity" {
+  description = "Enable RBAC role assignment for managed identity"
+  type        = bool
+  default     = false
+}
+
 variable "managed_identity_id" {
   description = "Principal ID of the managed identity. When provided, RBAC roles are assigned automatically"
   type        = string
