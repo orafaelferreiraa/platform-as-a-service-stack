@@ -32,6 +32,9 @@ skip-check:
   - CKV2_AZURE_34  # AllowAzureServices (0.0.0.0) required for Azure PaaS services and GitHub-hosted runners connectivity
   - CKV2_AZURE_45  # Private endpoint not possible with GitHub-hosted CI/CD runners - no static IPs for VNet integration
 
+  # External Modules
+  - CKV_TF_1       # Module sources use immutable git tags for versioning - tags are pinned to known releases
+
   # Service Bus
   - CKV_AZURE_199  # Double encryption requires Premium SKU - using Standard for cost optimization
   - CKV_AZURE_201  # Customer-managed key requires Premium SKU - using Standard for cost optimization

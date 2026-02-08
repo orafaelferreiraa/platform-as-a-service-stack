@@ -65,6 +65,12 @@ output "application_insights" {
   value       = "appi-${local.base_name_pattern}"
 }
 
+# Workloads - Container Registry
+output "container_registry" {
+  description = "Container Registry name (globally unique, alphanumeric only)"
+  value       = "cr${local.base_name_unique_compact}"
+}
+
 # Workloads - Containers
 output "container_apps_environment" {
   description = "Container Apps Environment name (globally unique with suffix)"

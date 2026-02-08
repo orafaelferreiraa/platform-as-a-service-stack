@@ -49,7 +49,7 @@ resource "azurerm_subnet" "default" {
 
 # Container Apps Subnet (requires delegation)
 resource "azurerm_subnet" "container_apps" {
-  name                 = local.subnet_container_apps_name
+  name = local.subnet_container_apps_name
   lifecycle {
     prevent_destroy = true
   }

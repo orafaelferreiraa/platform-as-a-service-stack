@@ -44,14 +44,22 @@ Add the following secrets to your repository:
 ### 3. Provision Infrastructure
 
 #### Via GitHub Actions (Recommended)
-1. Go to **Actions** → **Deploy Platform Infrastructure**
+
+The platform uses two separate workflows:
+
+- **Plan** (`deploy-plan.yml`): Triggered on Pull Requests to `main` or manually via `workflow_dispatch`. Runs [pipeline-as-a-service-stack](../pipeline-as-a-service-stack) core validation (TFLint, tfsec, Checkov) before planning.
+- **Apply** (`deploy-apply.yml`): Triggered on push to `main` or manually via `workflow_dispatch`. Executes `terraform apply` with auto-approve.
+
+**To deploy:**
+1. Go to **Actions** → **Deploy Platform Infrastructure** (apply) or **Plan Platform Infrastructure** (plan)
 2. Click **Run workflow**
 3. Fill in the platform name (lowercase alphanumeric only)
 4. Select resources to provision using feature flag checkboxes
-5. Choose action: `plan` or `apply`
-6. Review the plan and approve
+5. Review the plan output (posted as PR comment on plan workflow)
 
 > **Note**: Destroy is not available via workflow. To destroy resources, delete the Resource Group in Azure Portal and remove the state file from the storage account.
+
+**State Protection**: Both workflows check existing Terraform state and force-enable flags for resources already provisioned, preventing accidental destruction.
 
 #### Via Terraform CLI (Local Development)
 ```bash
@@ -225,7 +233,7 @@ enable_container_apps   = true
 
 ### SQL Server
 
-- **Default admin user**: `sqladmin` (hardcoded, not passed via pipeline)
+- **Default admin user**: `sql_admin` (hardcoded, not passed via pipeline)
 - **Password**: Auto-generated with `random_password` (16 chars minimum: 1 lowercase, 1 uppercase, 1 numeric, 1 special)
 - **Storage**: Automatically stored in Key Vault as `sql-admin-password` secret (if enabled)
 - **Azure AD Admin**: Configured via `data.azurerm_client_config.current.object_id` (current principal)
@@ -298,7 +306,14 @@ All resources follow [Microsoft Cloud Adoption Framework](https://learn.microsof
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    GitHub Actions                        │
-│         (Declarative workflow with feature flags)        │
+│    deploy-plan.yml ──► pipeline-core validation          │
+│    deploy-apply.yml ──► terraform apply                  │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│            pipeline-as-a-service-stack                    │
+│   (TFLint, tfsec, Checkov, terraform-docs, tf-cost)      │
 └────────────────────┬────────────────────────────────────┘
                      │
                      ▼
@@ -325,8 +340,26 @@ All resources follow [Microsoft Cloud Adoption Framework](https://learn.microsof
 ```
 platform-as-a-service-stack/
 ├── .github/
+│   ├── agents/                      # Copilot agent definitions
+│   │   ├── agent.agent.md
+│   │   ├── azure-agent.md
+│   │   ├── github-actions-agent.md
+│   │   └── terraform-agent.md
+│   ├── instructions/                # Copilot coding instructions
+│   │   ├── azure-instructions.md
+│   │   ├── github-actions-platform-instructions.md
+│   │   └── terraform-platform-instructions.md
+│   ├── prompts/                     # Copilot prompt templates
+│   │   ├── azure-prompt.md
+│   │   ├── github-actions-prompt.md
+│   │   └── terraform-prompt.md
+│   ├── skills/                      # Copilot skills
+│   │   ├── azure-platform-stack/
+│   │   ├── github-actions-platform-stack/
+│   │   └── terraform-platform-stack/
 │   └── workflows/
-│       └── deploy.yml                # GitHub Actions workflow
+│       ├── deploy-apply.yml         # Apply workflow (push to main / manual)
+│       └── deploy-plan.yml          # Plan workflow (PR to main / manual)
 ├── terraform/
 │   ├── modules/
 │   │   ├── foundation/
@@ -390,7 +423,9 @@ Use diagnostic settings at database level instead.
 
 ## Documentation
 
-- [prompt.md](prompt.md) - Complete project specification and business rules
+- [.github/agents/](/.github/agents/) - Copilot agent definitions for infrastructure development
+- [.github/instructions/](/.github/instructions/) - Copilot coding instructions with hard rules
+- [.github/prompts/](/.github/prompts/) - Copilot prompt templates for Azure, Terraform, and GitHub Actions
 - [Azure Naming Conventions](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming)
 - [Terraform AzureRM Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
 - [GitHub Actions Workflow Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
@@ -414,7 +449,7 @@ MIT License - see [LICENSE](LICENSE) for details
 **AzureRM Provider**: 4.57+  
 **Random Provider**: 3.8+  
 **Time Provider**: 0.13+  
-**Last Updated**: January 2026
+**Last Updated**: February 2026
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
