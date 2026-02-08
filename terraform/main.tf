@@ -64,6 +64,7 @@ module "observability" {
   location            = var.location
   resource_group_name = module.resource_group.name
   naming              = module.naming
+  managed_identity_resource_id = var.enable_managed_identity ? module.managed_identity[0].id : null
   tags                = local.base_tags
 }
 
@@ -103,6 +104,7 @@ module "event_grid" {
   name                           = module.naming.event_grid_domain
   location                       = var.location
   resource_group_name            = module.resource_group.name
+  enable_managed_identity        = var.enable_managed_identity
   managed_identity_id            = var.enable_managed_identity ? module.managed_identity[0].id : null
   service_bus_topic_id           = var.enable_service_bus ? module.service_bus[0].topic_id : null
   enable_service_bus_integration = var.enable_service_bus
@@ -149,17 +151,18 @@ module "key_vault" {
 
 # Workloads: Container Registry (optional) - RBAC auto-configured when MI is provided
 module "container_registry" {
-  count                      = var.enable_container_registry ? 1 : 0
-  source                     = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.1"
-  name                       = module.naming.container_registry
-  location                   = var.location
-  resource_group_name        = module.resource_group.name
-  sku                        = var.container_registry_sku
-  enable_managed_identity    = var.enable_managed_identity
-  managed_identity_id        = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
-  tags                       = local.base_tags
-  enable_observability       = var.enable_observability
-  log_analytics_workspace_id = var.enable_observability ? module.observability[0].log_analytics_id : null
+  count                        = var.enable_container_registry ? 1 : 0
+  source                       = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+  name                         = module.naming.container_registry
+  location                     = var.location
+  resource_group_name          = module.resource_group.name
+  sku                          = var.container_registry_sku
+  enable_managed_identity      = var.enable_managed_identity
+  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  managed_identity_resource_id = var.enable_managed_identity ? module.managed_identity[0].id : null
+  tags                         = local.base_tags
+  enable_observability         = var.enable_observability
+  log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
 # Workloads: Container Apps Environment (optional) - requires Observability, MI + ACR pre-wired

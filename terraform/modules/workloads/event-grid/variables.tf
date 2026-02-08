@@ -13,9 +13,16 @@ variable "resource_group_name" {
   type        = string
 }
 
+variable "enable_managed_identity" {
+  description = "Enable User-Assigned Managed Identity attachment"
+  type        = bool
+  default     = false
+}
+
 variable "managed_identity_id" {
-  description = "ID of the managed identity for authentication"
+  description = "Resource ID of the User-Assigned Managed Identity"
   type        = string
+  default     = null
 }
 
 variable "service_bus_topic_id" {

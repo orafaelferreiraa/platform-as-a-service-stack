@@ -26,3 +26,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "managed_identity_resource_id" {
+  description = "Resource ID of the User-Assigned Managed Identity. When provided, attaches the identity to Log Analytics"
+  type        = string
+  default     = null
+}

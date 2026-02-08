@@ -5,6 +5,14 @@ resource "azurerm_log_analytics_workspace" "main" {
   sku                 = "PerGB2018"
   retention_in_days   = 30
   tags                = var.tags
+
+  dynamic "identity" {
+    for_each = var.managed_identity_resource_id != null ? [1] : []
+    content {
+      type         = "UserAssigned"
+      identity_ids = [var.managed_identity_resource_id]
+    }
+  }
 }
 
 resource "azurerm_application_insights" "main" {

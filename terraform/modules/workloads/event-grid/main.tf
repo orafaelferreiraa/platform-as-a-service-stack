@@ -5,8 +5,12 @@ resource "azurerm_eventgrid_domain" "main" {
   public_network_access_enabled = false
   local_auth_enabled            = false
 
-  identity {
-    type = "SystemAssigned"
+  dynamic "identity" {
+    for_each = var.managed_identity_id != null ? [1] : []
+    content {
+      type         = "UserAssigned"
+      identity_ids = [var.managed_identity_id]
+    }
   }
 
   tags = var.tags
