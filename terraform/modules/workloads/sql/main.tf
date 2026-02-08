@@ -22,6 +22,8 @@ resource "azurerm_mssql_server" "main" {
   minimum_tls_version           = "1.2"
   public_network_access_enabled = true # Required for GitHub-hosted CI/CD runners and Azure PaaS services
 
+  primary_user_assigned_identity_id = var.managed_identity_resource_id
+
   dynamic "identity" {
     for_each = var.managed_identity_resource_id != null ? [1] : []
     content {
