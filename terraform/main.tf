@@ -85,16 +85,17 @@ module "storage_account" {
 
 # Workloads: Service Bus (optional) - RBAC auto-configured when MI is provided
 module "service_bus" {
-  count                      = var.enable_service_bus ? 1 : 0
-  source                     = "./modules/workloads/service-bus"
-  name                       = module.naming.service_bus
-  location                   = var.location
-  resource_group_name        = module.resource_group.name
-  enable_managed_identity    = var.enable_managed_identity
-  managed_identity_id        = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
-  tags                       = local.base_tags
-  enable_observability       = var.enable_observability
-  log_analytics_workspace_id = var.enable_observability ? module.observability[0].log_analytics_id : null
+  count                        = var.enable_service_bus ? 1 : 0
+  source                       = "./modules/workloads/service-bus"
+  name                         = module.naming.service_bus
+  location                     = var.location
+  resource_group_name          = module.resource_group.name
+  enable_managed_identity      = var.enable_managed_identity
+  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  managed_identity_resource_id = var.enable_managed_identity ? module.managed_identity[0].id : null
+  tags                         = local.base_tags
+  enable_observability         = var.enable_observability
+  log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
 # Workloads: Event Grid (optional) - RBAC auto-configured when MI is provided
@@ -106,6 +107,7 @@ module "event_grid" {
   resource_group_name            = module.resource_group.name
   enable_managed_identity        = var.enable_managed_identity
   managed_identity_id            = var.enable_managed_identity ? module.managed_identity[0].id : null
+  managed_identity_principal_id  = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
   service_bus_topic_id           = var.enable_service_bus ? module.service_bus[0].topic_id : null
   enable_service_bus_integration = var.enable_service_bus
   tags                           = local.base_tags
@@ -113,19 +115,22 @@ module "event_grid" {
   log_analytics_workspace_id     = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
-# Workloads: SQL Server & Database (optional)
+# Workloads: SQL Server & Database (optional) - UserAssigned MI auto-configured
 module "sql" {
-  count                      = var.enable_sql ? 1 : 0
-  source                     = "./modules/workloads/sql"
-  server_name                = module.naming.sql_server
-  database_name              = module.naming.sql_database
-  location                   = var.location
-  resource_group_name        = module.resource_group.name
-  administrator_login        = var.sql_administrator_login
-  vnet_subnet_ids            = var.enable_vnet ? [module.vnet_spoke[0].default_subnet_id] : []
-  tags                       = local.base_tags
-  enable_observability       = var.enable_observability
-  log_analytics_workspace_id = var.enable_observability ? module.observability[0].log_analytics_id : null
+  count                        = var.enable_sql ? 1 : 0
+  source                       = "./modules/workloads/sql"
+  server_name                  = module.naming.sql_server
+  database_name                = module.naming.sql_database
+  location                     = var.location
+  resource_group_name          = module.resource_group.name
+  administrator_login          = var.sql_administrator_login
+  enable_managed_identity      = var.enable_managed_identity
+  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+  managed_identity_resource_id = var.enable_managed_identity ? module.managed_identity[0].id : null
+  vnet_subnet_ids              = var.enable_vnet ? [module.vnet_spoke[0].default_subnet_id] : []
+  tags                         = local.base_tags
+  enable_observability         = var.enable_observability
+  log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
 }
 
 # Security: Key Vault (optional) - RBAC auto-configured when MI is provided
@@ -179,17 +184,4 @@ module "container_apps" {
   tags                            = local.base_tags
 }
 
-# RBAC: SQL access to Key Vault (if SQL, Key Vault and Managed Identity are enabled)
-resource "azurerm_role_assignment" "sql_key_vault_access" {
-  count                = var.enable_sql && var.enable_key_vault && var.enable_managed_identity ? 1 : 0
-  name                 = uuidv5("dns", "${module.key_vault[0].id}-${module.sql[0].identity_principal_id}-secrets-officer")
-  scope                = module.key_vault[0].id
-  role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = module.sql[0].identity_principal_id
 
-  lifecycle {
-    prevent_destroy = true
-  }
-
-  depends_on = [module.sql, module.key_vault]
-}

@@ -31,10 +31,29 @@ resource "azurerm_eventgrid_event_subscription" "service_bus" {
 
   service_bus_topic_endpoint_id = var.service_bus_topic_id
 
+  # Use User-Assigned MI for authenticated delivery to Service Bus
+  dynamic "delivery_identity" {
+    for_each = var.managed_identity_id != null ? [1] : []
+    content {
+      type                   = "UserAssigned"
+      user_assigned_identity = var.managed_identity_id
+    }
+  }
+
   retry_policy {
     max_delivery_attempts = 30
     event_time_to_live    = 1440
   }
+}
+
+# RBAC: Grant managed identity EventGrid Data Sender role
+# Allows apps using the MI to publish events to Event Grid domain
+resource "azurerm_role_assignment" "managed_identity_eventgrid_sender" {
+  count                = var.enable_managed_identity ? 1 : 0
+  name                 = uuidv5("dns", "${azurerm_eventgrid_domain.main.id}-${var.managed_identity_principal_id}-eventgrid-sender")
+  scope                = azurerm_eventgrid_domain.main.id
+  role_definition_name = "EventGrid Data Sender"
+  principal_id         = var.managed_identity_principal_id
 }
 
 # Diagnostic settings

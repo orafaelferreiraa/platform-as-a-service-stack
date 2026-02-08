@@ -8,7 +8,7 @@ resource "random_password" "sql_admin" {
   min_special      = 1
 }
 
-# SQL Server with system-assigned identity
+# SQL Server with User-Assigned Managed Identity
 #checkov:skip=CKV_AZURE_24:Audit retention managed by Log Analytics workspace retention policy - retention_in_days deprecated in azurerm 4.x
 #checkov:skip=CKV2_AZURE_27:Azure AD-only auth requires org-specific AD configuration - SQL auth maintained for platform flexibility
 #tfsec:ignore:azure-database-no-public-access Public access required for GitHub-hosted CI/CD runners and Azure PaaS service connectivity
@@ -22,8 +22,12 @@ resource "azurerm_mssql_server" "main" {
   minimum_tls_version           = "1.2"
   public_network_access_enabled = true # Required for GitHub-hosted CI/CD runners and Azure PaaS services
 
-  identity {
-    type = "SystemAssigned"
+  dynamic "identity" {
+    for_each = var.managed_identity_resource_id != null ? [1] : []
+    content {
+      type         = "UserAssigned"
+      identity_ids = [var.managed_identity_resource_id]
+    }
   }
 
   tags = var.tags

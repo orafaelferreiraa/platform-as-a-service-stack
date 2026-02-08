@@ -11,8 +11,12 @@ resource "azurerm_servicebus_namespace" "main" {
   public_network_access_enabled = true # Required for GitHub-hosted CI/CD runners - no static IPs for private endpoints
   tags                          = var.tags
 
-  identity {
-    type = "SystemAssigned"
+  dynamic "identity" {
+    for_each = var.managed_identity_resource_id != null ? [1] : []
+    content {
+      type         = "UserAssigned"
+      identity_ids = [var.managed_identity_resource_id]
+    }
   }
 
   lifecycle {

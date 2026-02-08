@@ -24,6 +24,24 @@ variable "administrator_login" {
   default     = "sql_admin"
 }
 
+variable "enable_managed_identity" {
+  description = "Enable User-Assigned Managed Identity attachment and RBAC"
+  type        = bool
+  default     = false
+}
+
+variable "managed_identity_resource_id" {
+  description = "Resource ID of the User-Assigned Managed Identity"
+  type        = string
+  default     = null
+}
+
+variable "managed_identity_id" {
+  description = "Principal ID of the managed identity for RBAC assignments"
+  type        = string
+  default     = null
+}
+
 variable "vnet_subnet_ids" {
   description = "List of subnet IDs for virtual network rules"
   type        = list(string)

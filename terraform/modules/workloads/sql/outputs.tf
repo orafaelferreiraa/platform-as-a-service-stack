@@ -29,7 +29,4 @@ output "admin_password" {
   sensitive   = true
 }
 
-output "identity_principal_id" {
-  description = "Principal ID of the SQL Server managed identity"
-  value       = azurerm_mssql_server.main.identity[0].principal_id
-}
+

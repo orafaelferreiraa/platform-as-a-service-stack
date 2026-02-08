@@ -25,6 +25,12 @@ variable "managed_identity_id" {
   default     = null
 }
 
+variable "managed_identity_principal_id" {
+  description = "Principal ID of the managed identity for RBAC role assignments"
+  type        = string
+  default     = null
+}
+
 variable "service_bus_topic_id" {
   description = "ID of the Service Bus topic for event subscriptions (optional)"
   type        = string

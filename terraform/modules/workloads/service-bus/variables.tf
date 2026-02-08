@@ -25,6 +25,12 @@ variable "managed_identity_id" {
   default     = null
 }
 
+variable "managed_identity_resource_id" {
+  description = "Resource ID of the User-Assigned Managed Identity for identity attachment"
+  type        = string
+  default     = null
+}
+
 variable "sku" {
   description = "SKU of the Service Bus namespace"
   type        = string
