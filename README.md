@@ -590,3 +590,105 @@ MIT License - see [LICENSE](LICENSE) for details
 | <a name="output_vnet_id"></a> [vnet\_id](#output\_vnet\_id) | ID of the VNet |
 | <a name="output_vnet_name"></a> [vnet\_name](#output\_vnet\_name) | Name of the VNet |
 <!-- END_TF_DOCS -->
+
+---
+
+## Architecture Diagram
+
+```mermaid
+graph TB
+    plan["☁️ deploy-plan.yml<br/>(PR / manual)"]
+
+    subgraph PIPE["📂 pipeline-as-a-service-stack"]
+        direction TB
+        tflint["1. TFLint - Linting and Best Practices"]
+        tfsec["2. tfsec - Static Security Analysis"]
+        checkov["3. Checkov - Security and Compliance"]
+        tflint --> tfsec --> checkov
+    end
+
+    apply["☁️ deploy-apply.yml<br/>(push main / manual)"]
+
+    plan --> PIPE
+    PIPE --> apply
+    apply --> TF
+
+    subgraph TF["📂 platform-as-a-service-stack"]
+        direction TB
+
+        subgraph Foundation["🏗️ Foundation"]
+            naming["Naming Convention<br/><i>MD5 deterministic suffixes</i>"]
+            rg["Resource Group<br/><i>prevent_destroy</i>"]
+        end
+
+        subgraph Security["🔐 Security"]
+            mi["Managed Identity<br/><i>User-Assigned</i>"]
+            kv["🔒 Key Vault<br/><i>RBAC-enabled</i>"]
+        end
+
+        subgraph Networking["🌐 Networking"]
+            vnet["VNet Spoke<br/><i>default + CA subnets</i>"]
+        end
+
+        subgraph Workloads["⚙️ Workloads"]
+            obs["Observability<br/><i>Log Analytics + App Insights</i>"]
+            sa["Storage Account"]
+            sb["Service Bus"]
+            eg["Event Grid"]
+            sql["SQL Server and DB"]
+            cae["Azure Container Apps"]
+        end
+    end
+
+    subgraph TFMOD["📂 tfmodules-as-a-service-stack"]
+        acr["Azure Container Registry - ACR"]
+    end
+
+    TF -.->|external module| TFMOD
+
+    rg --> mi
+    rg --> vnet
+    rg --> obs
+    rg --> sa
+    rg --> sb
+    rg --> eg
+    rg --> sql
+    rg --> kv
+    rg --> cae
+
+    mi -.->|RBAC| sa
+    mi -.->|RBAC| sb
+    mi -.->|RBAC| eg
+    mi -.->|RBAC| kv
+    mi -.->|RBAC| acr
+    mi -.->|attached| cae
+
+    vnet -.->|subnet| sa
+    vnet -.->|subnet| sql
+    vnet -.->|delegated subnet| cae
+
+    obs -->|required| cae
+    obs -.->|diagnostic settings| sa
+    obs -.->|diagnostic settings| sb
+    obs -.->|diagnostic settings| eg
+    obs -.->|diagnostic settings| sql
+    obs -.->|diagnostic settings| kv
+    obs -.->|diagnostic settings| acr
+
+    sql -.->|password| kv
+    acr -.->|image pull| cae
+
+    classDef foundation fill:#4A90D9,stroke:#2C5F8A,color:#fff
+    classDef security fill:#E74C3C,stroke:#C0392B,color:#fff
+    classDef workload fill:#F39C12,stroke:#D68910,color:#fff
+    classDef pipeline fill:#8E44AD,stroke:#6C3483,color:#fff
+    classDef gha fill:#2C3E50,stroke:#1A252F,color:#fff
+    classDef externalRepo fill:#1ABC9C,stroke:#16A085,color:#fff
+
+    class naming,rg,vnet foundation
+    class mi,kv security
+    class obs,sa,sb,eg,sql,cae workload
+    class tflint,tfsec,checkov pipeline
+    class plan,apply gha
+    class acr externalRepo
+```
