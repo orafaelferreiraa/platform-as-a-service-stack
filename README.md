@@ -611,14 +611,22 @@ graph TB
 
     plan --> PIPE
     PIPE --> apply
-    apply --> TF
+    apply --> STATE
+    STATE -->|terraform state| TF
+
+    subgraph STATE["Azure - TF Remote State"]
+        state_rg["📁 Resource Group<br/><i>rg-paas</i>"]
+        state_sa["📦 Storage Account<br/><i>storagepaas</i>"]
+        state_blob["📄 Blob Container<br/><i>tfstate/*.tfstate</i>"]
+        state_rg --- state_sa --- state_blob
+    end
 
     subgraph TF["📂 platform-as-a-service-stack"]
         direction TB
 
         subgraph Foundation["🏗️ Foundation"]
             naming["Naming Convention<br/><i>MD5 deterministic suffixes</i>"]
-            rg["Resource Group<br/><i>prevent_destroy</i>"]
+            rg["✅ Resource Group<br/>"]
         end
 
         subgraph Security["🔐 Security"]
@@ -627,21 +635,21 @@ graph TB
         end
 
         subgraph Networking["🌐 Networking"]
-            vnet["VNet Spoke<br/><i>default + CA subnets</i>"]
+            vnet["🌐 VNet Spoke<br/><i>default + CA subnets</i>"]
         end
 
         subgraph Workloads["⚙️ Workloads"]
-            obs["Observability<br/><i>Log Analytics + App Insights</i>"]
-            sa["Storage Account"]
-            sb["Service Bus"]
-            eg["Event Grid"]
-            sql["SQL Server and DB"]
-            cae["Azure Container Apps"]
+            obs["📊 Observability<br/><i>Log Analytics + App Insights</i>"]
+            sa["📦 Storage Account"]
+            sb["📨 Service Bus"]
+            eg["⚡ Event Grid"]
+            sql["🗄️ SQL Server and DB"]
+            cae["📦 Azure Container Apps"]
         end
     end
 
     subgraph TFMOD["📂 tfmodules-as-a-service-stack"]
-        acr["Azure Container Registry - ACR"]
+        acr["📦 Azure Container Registry - ACR"]
     end
 
     TF -.->|external module| TFMOD
@@ -684,6 +692,7 @@ graph TB
     classDef pipeline fill:#8E44AD,stroke:#6C3483,color:#fff
     classDef gha fill:#2C3E50,stroke:#1A252F,color:#fff
     classDef externalRepo fill:#1ABC9C,stroke:#16A085,color:#fff
+    classDef remoteState fill:#3498DB,stroke:#2471A3,color:#fff
 
     class naming,rg,vnet foundation
     class mi,kv security
@@ -691,4 +700,5 @@ graph TB
     class tflint,tfsec,checkov pipeline
     class plan,apply gha
     class acr externalRepo
+    class state_rg,state_sa,state_blob remoteState
 ```
