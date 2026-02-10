@@ -157,7 +157,7 @@ module "key_vault" {
 # Workloads: Container Registry (optional) - RBAC auto-configured when MI is provided
 module "container_registry" {
   count                        = var.enable_container_registry ? 1 : 0
-  source                       = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+  source                       = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3"
   name                         = module.naming.container_registry
   location                     = var.location
   resource_group_name          = module.resource_group.name

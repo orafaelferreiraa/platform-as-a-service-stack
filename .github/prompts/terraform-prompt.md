@@ -3,7 +3,7 @@ name: terraform
 description: Generate Terraform code for Platform as a Service Stack with MCP validation
 argument-hint: "[module|refactor|debug|validate] [component-name] [feature-flag]"
 agent: Terraform Platform Expert
-model: Claude Sonnet 4
+model: Claude Opus 4
 tools:
   - mcp_hashicorp
   - mcp_microsoftdocs
@@ -48,34 +48,8 @@ microsoft_code_sample_search(query: "azurerm_${input:component-name}", language:
 Read these instruction files:
 - [.github/instructions/terraform-platform-instructions.md](../instructions/terraform-platform-instructions.md)
 - [.github/instructions/azure-instructions.md](../instructions/azure-instructions.md)
-- [.github/copilot-instructions.md](../copilot-instructions.md)
 
-## 3. Platform Stack Architecture Context
-
-### Fixed Configuration
-- **Terraform Version**: >= 1.9.0
-- **Provider Versions**: azurerm ~> 4.57.0, random ~> 3.8.0, time ~> 0.13.0
-- **Region**: eastus2 (hardcoded)
-- **State Backend**: Azure Blob Storage with `use_azuread_auth = true`
-- **External Modules**: Container Registry (ACR) sourced from `tfmodules-as-a-service-stack` repo
-
-### Critical Patterns (Non-Negotiable)
-1. **Deterministic Naming**: `substr(md5(var.name), 0, 4)` - NEVER `random_string`
-   - Container Registry special naming: `cr{name}{region}{md5}` (no hyphens, alphanumeric only)
-2. **RBAC Role Assignments**: `name = uuidv5("dns", "${scope}-${principal}-{role}")` - NEVER omit
-3. **RBAC Propagation**: 180s `time_sleep` REQUIRED before secrets/containers
-4. **Count Conditions**: Boolean flags ONLY - NEVER `!= null` checks
-5. **Module Orchestration**: Root main.tf ONLY - NEVER inter-module dependencies
-6. **External Module Sourcing**: Pin to exact git ref - `git::https://...?ref=x.y.z`
-   - Container Registry uses external module: `git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2`
-
-### Feature Flags
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `enable_container_registry` | bool | `true` | Deploy Azure Container Registry |
-| `container_registry_sku` | string | `"Basic"` | ACR SKU tier (Basic, Standard, Premium) |
-
-## 5. Task Execution
+## 3. Task Execution
 
 ### If Creating Module:
 ```
@@ -116,11 +90,9 @@ variable "managed_identity_principal_id" {
   default     = null
 }
 
-# main.tf
-resource "azurerm_${input:component-name}" "main" {
-  name                = var.name  # From naming module
-  location            = var.location
-  r6. Output Format
+```
+
+## 4. Output Format
 
 Provide:
 - ✅ Complete module structure (main.tf, variables.tf, outputs.tf)
@@ -131,7 +103,7 @@ Provide:
 - ✅ Validation commands and anti-pattern checks
 - ✅ Links to similar modules: [storage-account/main.tf](terraform/modules/workloads/storage-account/main.tf)
 
-## 7. Validation Steps (MANDATORY)
+## 5. Validation Steps (MANDATORY)
 
 Run these commands before suggesting code:
 ```bash
@@ -182,100 +154,3 @@ terraform plan -var-file=test.tfvars
 - ✅ ALWAYS run anti-pattern checks before submit
 - ✅ ALWAYS source Container Registry from external module (`tfmodules-as-a-service-stack`)
 - ✅ ALWAYS assign AcrPush + AcrPull RBAC to Managed Identity for Container Registry
-  type        = string
-
-  validation {
-    condition     = contains(["dev", "qa", "prod"], var.environment)
-    error_message = "Must be dev, qa, or prod."
-  }
-}
-
-variable "client_secret" {
-  description = "Azure service principal secret"
-  type        = string
-  sensitive   = true
-}
-```
-
-### Outputs:
-```hcl
-output "resource" {
-  description = "Complete resource object"
-  value       = azurerm_storage_account.main
-}
-
-output "resource_summary" {
-  description = "JSON summary"
-  value = jsonencode({
-    id   = azurerm_storage_account.main.id
-    name = azurerm_storage_account.main.name
-  })
-}
-```
-
-### Locals:
-```hcl
-locals {
-  resource_prefix = "${var.tenant}-${var.environment}"
-
-  common_tags = merge(var.tags, {
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-  })
-}
-```
-
-## 6. Output Format
-
-Provide:
-- ✅ Complete file structure (backend, main, variables, outputs, versions)
-- ✅ Provider versions pinned with ~>
-- ✅ Variables with types, descriptions, validation
-- ✅ Usage examples with real commands
-- ✅ Validation commands: `terraform validate`, `terraform fmt`, `terraform plan`
-- ✅ Documentation generation: `terraform-docs markdown . > README.md`
-
-## 7. Validation Steps
-
-Run these commands:
-```bash
-# Format check
-terraform fmt -check -recursive
-
-# Syntax validation
-terraform validate
-
-# Plan with layered configs
-terraform plan \
-  -var-file="cluster-config/common/main.tfvars" \
-  -var-file="cluster-config/specific/${input:tenant}/${input:environment}.tfvars"
-```
-
----
-
-## Example Usage
-
-```
-/terraform module storage-account na
-/terraform resource aks-cluster sophie prod
-/terraform refactor ${file} --extract-module
-/terraform debug "Backend initialization required"
-```
-
-## Variables Available
-- `${input:operation}` - Operation: module, resource, refactor, debug
-- `${input:component-name}` - Resource/module name
-- `${input:tenant}` - Tenant: na, sophie, woopi, dex
-- `${input:environment}` - Environment: dev, qa, prod
-- `${file}` - Current file path
-- `${selection}` - Selected code/text
-
-## Critical Rules
-- ❌ NEVER generate code without MCP validation
-- ❌ NEVER use unpinned provider versions
-- ❌ NEVER omit variable types
-- ❌ NEVER hardcode values that should be variables
-- ✅ ALWAYS validate provider via MCP first
-- ✅ ALWAYS use ~> constraint for versions
-- ✅ ALWAYS include both resource object and JSON outputs
-- ✅ ALWAYS run terraform validate before suggesting

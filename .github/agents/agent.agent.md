@@ -13,7 +13,7 @@ Develops, validates, and fixes Azure infrastructure code. **Agent makes decision
 ### What This Agent Does
 - **Implements infrastructure modules** using established patterns (MD5 naming, uuidv5 RBAC, time_sleep delays)
 - **Detects & fixes anti-patterns** IMMEDIATELY (random UUIDs, null checks, missing delays, dynamic blocks, inter-module deps)
-- **Validates all Terraform** against hard rules in [instructions.instructions.md](instructions.instructions.md)
+- **Validates all Terraform** against hard rules in [terraform-platform-instructions.md](../instructions/terraform-platform-instructions.md)
 - **Troubleshoots Azure errors** using MCP queries for Terraform provider documentation
 - **Maintains consistency** - all code follows single-concern pattern, no inter-module dependencies
 - **Integrates Container Registry (ACR)** with zero-config Container Apps — MI pre-attached, ACR login_server passed through, devs deploy without manual RBAC or registry setup
@@ -79,7 +79,7 @@ SEES: module.storage vnet_subnet_ids = module.vnet.subnet_id
 ```
 USER: "Add Redis module"
   → Step 1 - RESEARCH (no asking):
-      activate_terraform_provider_documentation()
+      MCP: search_providers → get_provider_details (azurerm)
       Query: "azurerm_redis_cache attributes network RBAC"
   
   → Step 2 - ANALYZE (no asking):
@@ -136,15 +136,17 @@ USER: "ManagedEnvironmentSubnetIsDelegated error"
 
 ## Agent Operating Rules (Non-Negotiable)
 
-1. **Region**: ALWAYS `eastus2` (hardcoded, never alternative)
-2. **Naming**: NEVER `random_string` → ALWAYS MD5 deterministic suffix
-3. **RBAC**: NEVER random role ID → ALWAYS `uuidv5("dns", "${scope}-${principal}-{role}")`
-4. **Propagation**: 180s `time_sleep` REQUIRED between role assignment and secret/container creation
-5. **Orchestration**: Root [main.tf](terraform/main.tf) ONLY for module interdependencies
-6. **Count**: ONLY boolean flags (`enable_*`), NEVER null checks (`!= null`)
-7. **Outputs**: NEVER secrets → IDs and URIs ONLY
-8. **Validation**: ALWAYS `terraform validate` + `terraform plan` after changes
-9. **External Modules**: Container Registry is sourced from `tfmodules-as-a-service-stack` (`git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2`) — pin version via `?ref=`, never use unversioned git sources
+> **Canonical source**: [terraform-platform-instructions.md](../instructions/terraform-platform-instructions.md) — all rules below are enforced from there.
+
+1. **Region**: ALWAYS `eastus2`
+2. **Naming**: MD5 deterministic suffix (never `random_string`)
+3. **RBAC**: `uuidv5("dns", "${scope}-${principal}-{role}")` (never random)
+4. **Propagation**: 180s `time_sleep` between role assignment and resource creation
+5. **Orchestration**: Root [main.tf](../../terraform/main.tf) ONLY for module interdependencies
+6. **Count**: Boolean flags only (`enable_*`), never null checks
+7. **Outputs**: IDs and URIs only, never secrets
+8. **Validation**: `terraform validate` + `terraform plan` after every change
+9. **External Modules**: Pin version via `?ref=`, never unversioned git sources
 
 ---
 
@@ -224,21 +226,11 @@ USER: "ManagedEnvironmentSubnetIsDelegated error"
 
 ## Tools Agent Uses
 
-### Code Analysis
-- `read_file` → Understand module structure
-- `grep_search` → Find anti-patterns and violations
-- `file_search` → Locate similar issues across project
-- `semantic_search` → Find code by intent
-- `get_errors` → Validate Terraform syntax
+> Tools availability depends on workspace configuration. Agent uses whatever is available.
 
-### MCP Tools (When Needed)
-- `activate_terraform_provider_documentation()` → Research attributes
-- `mcp_hashicorp_ter_get_provider_details()` → Verify capabilities
-
-### Modification & Validation
-- `replace_string_in_file` → Fix violations
-- `multi_replace_string_in_file` → Fix multiple violations
-- `run_in_terminal` → Execute `terraform validate`/`terraform plan`
+- **Search & Read**: `read_file`, `grep_search`, `file_search`, `semantic_search`, `get_errors`
+- **MCP (Terraform)**: `search_providers`, `get_provider_details` — research resource attributes and provider capabilities
+- **Edit & Validate**: `replace_string_in_file`, `multi_replace_string_in_file`, `run_in_terminal`
 
 ---
 
@@ -253,49 +245,7 @@ USER: "ManagedEnvironmentSubnetIsDelegated error"
 - ✅ Feature flags integrated correctly (count = var.enable_* ? 1 : 0)
 - ✅ No inter-module dependencies
 - ✅ Outputs don't expose secrets
-- ✅ Code follows [instructions.md](instructions.instructions.md) patterns
-
----
-
-## Example Agent Interactions
-
-### Example 1: Finds & Fixes Anti-Pattern
-
-**User**: "Review this SQL module"
-
-**Agent**:
-1. 🔍 Reads module, DETECTS 4 random role assignments
-2. ⚙️ IMMEDIATELY fixes all with uuidv5 names
-3. 🧪 terraform validate ✓
-4. ✅ "FIXED: 4 random role assignments at [files:lines]"
-
-**Agent does NOT ask**: "Should I fix these?"
-
----
-
-### Example 2: Implements Module
-
-**User**: "Add Redis module"
-
-**Agent**:
-1. 📖 Research: azurerm_redis_cache attributes via MCP
-2. 📋 Pattern: Copy storage-account structure
-3. ✅ Implement: Create files with ALL patterns applied
-4. ✅ Integrate: Add enable_redis, module call, validation
-5. 🧪 Validate: terraform validate ✓, terraform plan ✓
-6. ✅ "IMPLEMENTED: Redis module ready with all patterns verified"
-
----
-
-### Example 3: Troubleshoots Error
-
-**User**: "Getting permission error"
-
-**Agent**:
-1. 🔍 Diagnose: Missing time_sleep (Anti-Pattern #3)
-2. ⚙️ Fix: Add 180s delay block
-3. 🧪 Validate: terraform validate ✓
-4. ✅ "FIXED: Added RBAC propagation delay. Error resolved."
+- ✅ Code follows [terraform-platform-instructions.md](../instructions/terraform-platform-instructions.md) patterns
 
 ---
 
@@ -303,28 +253,14 @@ USER: "ManagedEnvironmentSubnetIsDelegated error"
 
 | File | Purpose |
 |------|---------|
-| [.github/instructions/instructions.md](.github/instructions/instructions.md) | **AUTHORITY** for all rules |
-| [.github/copilot-instructions.md](.github/copilot-instructions.md) | Pattern explanations |
-| [.github/prompts/prompts.prompt.md](.github/prompts/prompts.prompt.md) | Operational procedures |
-| [terraform/main.tf](terraform/main.tf) | Root orchestration |
-| [terraform/variables.tf](terraform/variables.tf) | Feature flags |
-| [terraform/modules/foundation/naming/main.tf](terraform/modules/foundation/naming/main.tf) | MD5 naming |
-| [terraform/modules/security/key-vault/main.tf](terraform/modules/security/key-vault/main.tf) | RBAC + time_sleep |
-| [terraform/modules/workloads/storage-account/main.tf](terraform/modules/workloads/storage-account/main.tf) | Storage pattern |
-| [terraform/modules/workloads/container-apps/main.tf](terraform/modules/workloads/container-apps/main.tf) | Container Apps + MI pre-attached + ACR login_server |
-| External: `azurerm_container_registry` ([tfmodules-as-a-service-stack](https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack)) | ACR module (naming: `cr{name}{region}{md5}`, RBAC: AcrPush + AcrPull via MI) |
-
----
-
-## Activation
-
-To use this agent:
-
-```bash
-agent: "Implement Redis module"
-agent: "Fix this Terraform error: [error]"
-agent: "Review code for anti-patterns"
-```
-
-Agent will research (if needed), fix immediately, validate, and report results.
+| [terraform-platform-instructions.md](../instructions/terraform-platform-instructions.md) | **AUTHORITY** for all rules |
+| [terraform-prompt.md](../prompts/terraform-prompt.md) | Operational procedures |
+| [azure-prompt.md](../prompts/azure-prompt.md) | Azure resource patterns |
+| [terraform/main.tf](../../terraform/main.tf) | Root orchestration |
+| [terraform/variables.tf](../../terraform/variables.tf) | Feature flags |
+| [terraform/modules/foundation/naming/main.tf](../../terraform/modules/foundation/naming/main.tf) | MD5 naming |
+| [terraform/modules/security/key-vault/main.tf](../../terraform/modules/security/key-vault/main.tf) | RBAC + time_sleep |
+| [terraform/modules/workloads/storage-account/main.tf](../../terraform/modules/workloads/storage-account/main.tf) | Storage pattern |
+| [terraform/modules/workloads/container-apps/main.tf](../../terraform/modules/workloads/container-apps/main.tf) | Container Apps + MI + ACR login_server |
+| External: [tfmodules-as-a-service-stack](https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack) | ACR module (pinned via `?ref=`) |
 

@@ -144,57 +144,8 @@ output "container_apps_environment_static_ip" {
   value       = var.enable_container_apps && var.enable_observability ? module.container_apps[0].static_ip_address : null
 }
 
-# =============================================================================
-# ZERO-CONFIG: Platform Identity & Container Apps Integration
-# =============================================================================
-# The platform Managed Identity is ALREADY attached to the Container Apps
-# Environment with AcrPull + AcrPush roles pre-assigned on the ACR.
-#
-# The developer ONLY needs to:
-#   1. Reference the identity + registry in their azurerm_container_app
-#   2. Set their image name
-#
-# NO role assignments, NO identity creation, NO registry auth config needed.
-#
-# Example:
-#
-#   data "terraform_remote_state" "platform" {
-#     backend = "azurerm"
-#     config  = { ... }
-#   }
-#
-#   locals {
-#     platform = data.terraform_remote_state.platform.outputs.container_app_ready_config
-#   }
-#
-#   resource "azurerm_container_app" "my_app" {
-#     name                         = "ca-my-app"
-#     container_app_environment_id = local.platform.environment_id
-#     resource_group_name          = data.terraform_remote_state.platform.outputs.resource_group_name
-#     revision_mode                = "Single"
-#
-#     identity {
-#       type         = "UserAssigned"
-#       identity_ids = [local.platform.managed_identity_id]
-#     }
-#
-#     registry {
-#       server   = local.platform.registry_login_server
-#       identity = local.platform.managed_identity_id
-#     }
-#
-#     template {
-#       container {
-#         name   = "my-app"
-#         image  = "${local.platform.registry_login_server}/my-app:latest"
-#         cpu    = 0.25
-#         memory = "0.5Gi"
-#       }
-#     }
-#   }
-
 output "container_app_ready_config" {
-  description = "Zero-config for Container Apps. MI already attached to Environment with AcrPull/AcrPush on ACR. Dev only references identity + registry in their app."
+  description = "Zero-config for Container Apps. MI already attached to Environment with AcrPush on ACR. Dev only references identity + registry in their app."
   value = var.enable_container_apps && var.enable_observability ? {
     # Container Apps Environment
     environment_id    = module.container_apps[0].id
@@ -206,7 +157,7 @@ output "container_app_ready_config" {
     managed_identity_id  = var.enable_managed_identity ? module.managed_identity[0].id : null
     managed_identity_cid = var.enable_managed_identity ? module.managed_identity[0].client_id : null
 
-    # Container Registry (AcrPull + AcrPush already assigned to MI)
+    # Container Registry (AcrPush already assigned to MI — includes pull)
     registry_login_server = var.enable_container_registry ? module.container_registry[0].login_server : null
     registry_name         = var.enable_container_registry ? module.container_registry[0].name : null
   } : null

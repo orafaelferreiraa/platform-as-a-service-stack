@@ -3,7 +3,7 @@ name: azure
 description: Create or troubleshoot Azure resources for Platform as a Service Stack with MCP validation
 argument-hint: resource-type [operation] [feature-flags]
 agent: Azure Platform Expert
-model: Claude Sonnet 4
+model: Claude Opus 4
 tools:
   - mcp_microsoftdocs
   - mcp_hashicorp
@@ -40,35 +40,13 @@ mcp_hashicorp_ter_get_provider_details(
 ## 2. Load Platform Stack Context Files
 Read these instruction files:
 - [.github/instructions/azure-instructions.md](../instructions/azure-instructions.md)
-- [.github/copilot-instructions.md](../copilot-instructions.md)
 
 ## 3. Check Existing Platform Patterns
 Use semantic_search and grep_search:
 - Search: `resource "azurerm_${input:resource-type}"` in `terraform/modules/`
 - Identify: RBAC patterns (uuidv5), time_sleep delays, naming module usage
 
-## 4. Platform Stack Architecture Context
-
-### Fixed Configuration
-- **Region**: `eastus2` (hardcoded, not configurable)
-- **Location Abbreviation**: `eus2`
-- **Naming Convention**: `{name}-{location_abbr}-{md5_suffix}`
-  - **Container Registry exception**: `cr{name}{region}{md5}` (no hyphens/dots — e.g., `crmyplatformeus2abc1`)
-- **Provider**: azurerm ~> 4.57.0 with `storage_use_azuread = true`
-
-### Managed Services
-- Resource Group, Key Vault, Managed Identity, Storage Account, SQL, Service Bus, Event Grid, Observability, Container Apps, **Container Registry (ACR)**
-- **Container Registry**: SKU `Basic` / `Standard` / `Premium`; feature flags `enable_container_registry` (bool, default `true`) and `container_registry_sku` (string, default `"Basic"`)
-- **ACR Dependencies**: Requires Resource Group. Optionally depends on Managed Identity (for AcrPush + AcrPull RBAC).
-- **Container Apps zero-config**: Managed Identity is pre-attached and ACR `login_server` is passed through so workloads pull images without manual registry config.
-
-### Critical Patterns
-1. **Deterministic Naming**: `substr(md5(var.name), 0, 4)` - NEVER `random_string`
-2. **RBAC Role Assignments**: `uuidv5("dns", "${scope}-${principal}-{role}")` - NEVER omit `name`
-3. **RBAC Propagation**: 180s `time_sleep` REQUIRED before secrets/containers
-4. **Count Conditions**: Boolean flags ONLY - NEVER `!= null` checks
-
-## 5. Task Execution
+## 4. Task Execution
 
 ### If Creating New Module:
 1. **Research with MCP** (execute queries above)
@@ -109,49 +87,7 @@ Use semantic_search and grep_search:
    ```
 
 ### If Implementing Resource (within module):
-
-**MANDATORY Pattern**:
-```hcl
-# Use naming module output
-resource "azurerm_${input:resource-type}" "main" {
-  name                = var.name  # From naming module
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  
-  # Security: RBAC-first (no shared keys)
-  # Example for Storage: shared_access_key_enabled = false
-  # Example for Key Vault: rbac_authorization_enabled = true
-  
-  tags = var.tags
-  
-  lifecycle {
-    prevent_destroy = true  # For critical resources
-  }
-}
-
-# RBAC with deterministic name
-resource "azurerm_role_assignment" "mi_role" {
-  name                 = uuidv5("dns", "${azurerm_${input:resource-type}.main.id}-${var.managed_identity_principal_id}-contributor")
-  scope                = azurerm_${input:resource-type}.main.id
-  role_definition_name = "Contributor"
-  principal_id         = var.managed_identity_principal_id
-}
-
-# RBAC propagation delay
-resource "time_sleep" "wait_for_rbac" {
-  depends_on      = [azurerm_role_assignment.mi_role]
-  create_duration = "180s"
-  triggers = {
-    role_assignment_id = azurerm_role_assignment.mi_role.id
-  }
-}
-
-# Dependent resources AFTER time_sleep
-resource "azurerm_${input:resource-type}_secret" "example" {
-  # ...
-  depends_on = [time_sleep.wait_for_rbac]
-}
-```
+Follow the MANDATORY patterns defined in [azure-instructions.md](../instructions/azure-instructions.md): naming module outputs, RBAC-first security, `uuidv5()` role assignments, 180s `time_sleep` propagation delay, and `lifecycle { prevent_destroy = true }` for critical resources.
 
 ### If Troubleshooting:
 
@@ -187,7 +123,7 @@ resource "azurerm_${input:resource-type}_secret" "example" {
 3. Verify RBAC propagation (180s time_sleep exists)
 4. Validate feature flag dependencies
 
-## 6. Output Format
+## 5. Output Format
 
 Provide:
 - ✅ Complete module code (main.tf, variables.tf, outputs.tf)
@@ -198,7 +134,7 @@ Provide:
 - ✅ Validation commands: `terraform validate`, `terraform plan`
 - ✅ Links to similar modules: [storage-account/main.tf](terraform/modules/workloads/storage-account/main.tf)
 
-## 7. Validation Checklist
+## 6. Validation Checklist
 
 Run these checks:
 ```bash

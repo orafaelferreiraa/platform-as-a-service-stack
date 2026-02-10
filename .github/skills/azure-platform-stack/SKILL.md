@@ -20,86 +20,9 @@ This skill provides expert guidance for Azure infrastructure operations in the *
 - Optimizing RBAC role assignments with uuidv5()
 - Applying Platform Stack security standards (RBAC-first, no shared keys)
 
-## MANDATORY: MCP Integration Workflow
+## MCP Integration
 
-**BEFORE generating ANY Azure code or recommendations, you MUST execute this workflow:**
-
-### Step 1: Consult Microsoft Documentation (REQUIRED)
-
-```
-Use microsoft_docs_search:
-- Query: "Azure <resource-type> security best practices" or specific error message
-- Purpose: Get latest Azure documentation and recommendations
-- Example: "Azure Storage Account Azure AD authentication"
-
-Use microsoft_code_sample_search:
-- Query: "azurerm_<resource-type>"
-- Language: "terraform"
-- Purpose: Retrieve official Terraform code examples
-- Example: "azurerm_storage_account" with language="terraform"
-
-Use microsoft_docs_fetch:
-- URL: <from search results>
-- Purpose: Get complete documentation pages for complex topics
-- When: Search results are incomplete or need full context
-```
-
-**Example workflow for Storage Account:**
-```
-1. Search docs: "Azure Storage Account security best practices"
-2. Get samples: "azurerm_storage_account" with language="terraform"
-3. Fetch details: Complete Storage Account RBAC guide
-4. Result: Confirms shared_access_key_enabled = false pattern
-```
-
-### Step 2: Validate Terraform Provider (REQUIRED)
-
-```
-Use mcp_hashicorp_ter_get_latest_provider_version:
-- Namespace: "hashicorp"
-- Name: "azurerm"
-- Purpose: Verify using ~> 4.57.0 constraint
-
-Use mcp_hashicorp_ter_search_providers:
-- Query: "azurerm <resource-name>"
-- Example: "azurerm storage_account"
-- Purpose: Find exact resource documentation ID
-
-Use mcp_hashicorp_ter_get_provider_details:
-- Namespace: "hashicorp"
-- Name: "azurerm"
-- Type: "azurerm_<resource-name>"
-- Purpose: Get complete schema, detect deprecated attributes
-- Critical: Check for Azure Provider 4.x changes
-```
-
-**Example workflow for SQL Server:**
-```
-1. Get version: azurerm latest (expect 4.57.0)
-2. Search: "azurerm mssql_server"
-3. Get details: Complete azurerm_mssql_server schema
-4. Validate: Diagnostic settings supported categories
-5. Result: SQLSecurityAuditEvents NOT supported at server level
-```
-
-### Step 3: Review Platform Stack Patterns (REQUIRED)
-
-```
-Use grep_search:
-- Query: "resource \"azurerm_<resource-type>\"" in "terraform/modules/**"
-- Purpose: Find similar module implementations
-- Example: Find Storage Account module to copy RBAC pattern
-
-Use read_file:
-- File: terraform/modules/workloads/storage-account/main.tf
-- Purpose: Understand RBAC, time_sleep, naming patterns
-- File: .github/copilot-instructions.md
-- Purpose: Review all critical patterns and anti-patterns
-
-Use semantic_search:
-- Query: "uuidv5 role assignment <resource-type>"
-- Purpose: Find deterministic RBAC examples
-```
+> **Canonical source**: See agent's MCP Tool Usage Protocol. Always consult Microsoft Docs and Terraform provider MCP before any implementation.
 
 ## Critical Platform Stack Standards
 
@@ -112,114 +35,21 @@ Use semantic_search:
 - **Provider Version**: azurerm ~> 4.57.0, random ~> 3.8.0, time ~> 0.13.0
 - **State Backend**: Azure Blob Storage with `use_azuread_auth = true`
 
-### Deterministic Naming Convention (MANDATORY)
+### Naming Convention
 
-**Pattern**: `{name}-{location_abbr}-{md5_suffix}` for globally unique resources
+> See `terraform-platform-instructions.md` — Naming section. Pattern: `{name}-{location_abbr}-{md5_suffix}`, ACR: `cr{name}{region}{md5}`.
 
-```hcl
-locals {
-  name          = lower(var.name)  # User input: "myplatform"
-  md5_suffix    = substr(md5(local.name), 0, 4)  # Deterministic: "a1b2"
-  location_abbr = "eus2"  # eastus2 → eus2
-  
-  # Resource naming outputs from naming module
-  storage_account = "st${local.name}${local.md5_suffix}"  # "stmyplatforma1b2"
-  key_vault       = "kv-${local.name}-${local.location_abbr}-${local.md5_suffix}"  # "kv-myplatform-eus2-a1b2"
-  sql_server          = "sql-${local.name}-${local.location_abbr}-${local.md5_suffix}"  # "sql-myplatform-eus2-a1b2"
-  container_registry  = "cr${local.name}${local.md5_suffix}"  # "crmyplatforma1b2"
-}
-```
+### RBAC Security
 
-**Why MD5 (not random_string)**:
-- Same input = same suffix ALWAYS (idempotent)
-- No destroy/recreate cycles on re-apply
-- Predictable resource names for troubleshooting
+> See `terraform-platform-instructions.md` — RBAC section. Key rules: `shared_access_key_enabled = false`, `rbac_authorization_enabled = true`, `storage_use_azuread = true`.
 
-**CRITICAL**: NEVER use `random_string` or `random_uuid` - they cause resource destruction!
+### Role Assignments
 
-### RBAC-First Security (No Shared Keys)
+> See `terraform-platform-instructions.md` for uuidv5 pattern: `name = uuidv5("dns", "${scope}-${principal}-{role}")`. 
 
-**ALL Platform Stack resources use Azure AD authentication:**
+### RBAC Propagation
 
-```hcl
-# Storage Account - NO shared keys
-resource "azurerm_storage_account" "main" {
-  name                      = var.name  # From naming module
-  shared_access_key_enabled = false     # MANDATORY
-  # ...
-}
-
-# Key Vault - RBAC authorization
-resource "azurerm_key_vault" "main" {
-  name                       = var.name
-  rbac_authorization_enabled = true  # MANDATORY (not access policies)
-  # ...
-}
-
-# Provider configuration - Azure AD for Storage
-provider "azurerm" {
-  features {}
-  subscription_id     = var.subscription_id
-  storage_use_azuread = true  # CRITICAL for Storage without keys
-}
-```
-
-**Without `storage_use_azuread = true`**: Container/blob creation fails with "Key based authentication is not permitted"
-
-### Deterministic Role Assignments (uuidv5)
-
-**Pattern**: `name = uuidv5("dns", "${scope}-${principal}-{role_type}")`
-
-```hcl
-resource "azurerm_role_assignment" "mi_blob_contributor" {
-  name                 = uuidv5("dns", "${azurerm_storage_account.main.id}-${var.managed_identity_principal_id}-blob-contributor")
-  scope                = azurerm_storage_account.main.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = var.managed_identity_principal_id
-}
-```
-
-**Why uuidv5 (not omitting name)**:
-- Same inputs = same role assignment ID (idempotent)
-- No random UUIDs generated by Azure
-- No destroy/recreate on re-apply
-
-**CRITICAL**: ALWAYS include `name` attribute - Azure generates random UUID otherwise!
-
-### RBAC Propagation Delay (180s time_sleep)
-
-**Azure RBAC takes 3-5 minutes to propagate globally**
-
-```hcl
-# Step 1: Assign role
-resource "azurerm_role_assignment" "current_admin" {
-  name                 = uuidv5("dns", "${azurerm_key_vault.main.id}-${data.azurerm_client_config.current.object_id}-admin")
-  scope                = azurerm_key_vault.main.id
-  role_definition_name = "Key Vault Administrator"
-  principal_id         = data.azurerm_client_config.current.object_id
-}
-
-# Step 2: WAIT for propagation
-resource "time_sleep" "wait_for_rbac" {
-  depends_on      = [azurerm_role_assignment.current_admin]
-  create_duration = "180s"  # 3 minutes minimum
-  
-  triggers = {
-    role_assignment_id = azurerm_role_assignment.current_admin.id
-  }
-}
-
-# Step 3: Create secret AFTER propagation
-resource "azurerm_key_vault_secret" "sql_password" {
-  name         = "sql-admin-password"
-  value        = random_password.sql_admin.result
-  key_vault_id = azurerm_key_vault.main.id
-  
-  depends_on = [time_sleep.wait_for_rbac]  # CRITICAL
-}
-```
-
-**Used in**: Key Vault (before secrets), Storage Account (before containers)
+> See `terraform-platform-instructions.md` — 180s `time_sleep` required before secrets/containers after role assignment.
 
 ### Feature Flag Dependencies
 
@@ -499,30 +329,7 @@ resource "azurerm_resource_group" "main" {
 
 ### Provider Version Management
 
-**ALWAYS pin with `~>` constraint:**
-
-```terraform
-terraform {
-  required_version = "~> 1.9.0"
-
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.51.0"  # Latest for new projects
-    }
-    azuread = {
-      source  = "hashicorp/azuread"
-      version = "~> 3.1.0"
-    }
-  }
-}
-```
-
-**Version checking workflow:**
-1. Check latest: `mcp_hashicorp_ter_get_latest_provider_version`
-2. Review breaking changes if upgrading
-3. Use `~>` constraint (allows patch updates)
-4. NEVER use unpinned (`>= 3.0`) or exact (`= 4.51.0`)
+> See `terraform-platform-instructions.md` — Provider versions. Use `~> 4.57.0` for azurerm, `>= 1.9.0` for Terraform. Always pin with `~>` constraint and check latest via MCP before generating code.
 
 ### Security Standards
 
@@ -784,7 +591,7 @@ az network vnet subnet show --resource-group <rg> --vnet-name <vnet> --name <sub
 ```powershell
 # Check blob lease status
 az storage blob show `
-  --account-name stapplicationsautomation `
+  --account-name storagepaas `
   --container-name tfstate `
   --name <tenant>-<environment>.tfstate `
   --query properties.lease
@@ -793,7 +600,7 @@ az storage blob show `
 az storage blob lease break `
   --blob-name <tenant>-<environment>.tfstate `
   --container-name tfstate `
-  --account-name stapplicationsautomation
+  --account-name storagepaas
 ```
 
 ### Resource Already Exists
@@ -862,27 +669,4 @@ When deploying to a new tenant:
    terraform plan -var-file="cluster-config/specific/newtenant/dev.tfvars"
    ```
 
-## Response Format
 
-When providing Azure solutions:
-
-1. **Analysis**: Explain the requirement and approach
-2. **MCP validation**: Show which MCP tools were consulted
-3. **Code**: Complete, production-ready Terraform configuration
-4. **Checklist**: Security, naming, provider alias verification
-5. **Validation**: Azure CLI and Terraform commands to test
-6. **Documentation references**: Links to Microsoft docs and Terraform registry
-7. **Next steps**: Any follow-up actions required
-
-## Key Reminders
-
-- ✅ ALWAYS consult MCP tools before generating code
-- ✅ ALWAYS use explicit provider aliases (never default provider)
-- ✅ ALWAYS follow naming conventions
-- ✅ ALWAYS pin provider versions with `~>`
-- ✅ ALWAYS apply security best practices
-- ✅ ALWAYS include tags on resources
-- ❌ NEVER use public endpoints for production data services
-- ❌ NEVER hardcode credentials
-- ❌ NEVER skip MCP documentation validation
-- ❌ NEVER use unpinned provider versions

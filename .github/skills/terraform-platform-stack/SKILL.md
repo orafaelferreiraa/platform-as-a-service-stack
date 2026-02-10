@@ -22,83 +22,8 @@ This skill provides expert guidance for Terraform infrastructure as code develop
 - Troubleshooting RBAC propagation failures
 - Optimizing Terraform state with boolean flags (not null checks)
 
-## MANDATORY: MCP Integration Workflow
-
-**BEFORE writing/modifying ANY Terraform code, you MUST execute this workflow:**
-
-### Step 1: Check Provider/Module Versions (REQUIRED)
-
-```
-Use mcp_hashicorp_ter_get_latest_provider_version:
-- Provider: azurerm, azuread, kubernetes, helm, etc.
-- Purpose: Get current version for ~> constraint
-- NEVER guess versions
-
-Use mcp_hashicorp_ter_get_latest_module_version:
-- Namespace: <registry namespace>
-- Name: <module name>
-- Provider: <provider name>
-- Purpose: Check latest module version if using registry modules
-```
-
-**Example workflow:**
-```
-1. Get version: azurerm provider
-2. Result: "4.51.0" → use "~> 4.51.0"
-3. Get version: azuread provider
-4. Result: "3.1.0" → use "~> 3.1.0"
-```
-
-### Step 2: Consult Provider/Module Documentation (REQUIRED)
-
-```
-Use mcp_hashicorp_ter_search_providers:
-- Provider name: "azurerm"
-- Service slug: "<resource-type>" (e.g., "kubernetes_cluster", "storage_account")
-- Provider namespace: "hashicorp"
-- Provider document type: "resources" (for creating) or "data-sources" (for reading)
-- Purpose: Find exact resource documentation
-
-Use mcp_hashicorp_ter_get_provider_details:
-- Provider doc ID: <from search results>
-- Purpose: Get complete resource schema, arguments, examples
-- NEVER skip this - it prevents incorrect argument usage
-```
-
-**Example workflow:**
-```
-1. Search: provider="azurerm", service="kubernetes_cluster", type="resources"
-2. Get doc ID from results
-3. Get details: Complete azurerm_kubernetes_cluster schema
-4. Verify: required vs optional arguments
-5. Review: official examples
-```
-
-**For modules:**
-```
-Use mcp_hashicorp_ter_search_modules:
-- Query: "<module purpose>"
-- Provider: "azure" or specific provider
-- Purpose: Find existing public registry modules
-
-Use mcp_hashicorp_ter_get_module_details:
-- Module namespace/name/provider: from search
-- Purpose: Get usage documentation, inputs, outputs
-```
-
-### Step 3: Review Workspace Patterns (REQUIRED)
-
-```
-Use grep_search or semantic_search:
-- Search for: similar resource types in *.tf files
-- Purpose: Maintain consistency with existing patterns
-
-Read relevant workspace files:
-- backend.tf - State configuration pattern
-- providers.tf - Provider alias patterns
-- variables.tf - Variable declaration standards
-- modules/terraform-azurerm-*/ - Module structure examples
-```
+## MCP Integration
+> **Canonical source**: See agent's MCP Tool Usage Protocol. Always validate provider versions and resource schemas via MCP tools before any code generation.
 
 ## Critical Platform Stack Standards
 
@@ -165,28 +90,8 @@ module "storage" {
 
 **CRITICAL**: Modules NEVER reference other modules - orchestration at root only!
 
-### Anti-Patterns (FORBIDDEN)
-
-**Detect with grep before committing**:
-
-```bash
-# 1. No random_string/random_uuid (use MD5)
-grep -r "random_string\|random_uuid" terraform/modules/
-
-# 2. All role assignments MUST have 'name' (use uuidv5)
-grep -n "azurerm_role_assignment" terraform/modules -r | grep -v "name ="
-
-# 3. No null checks in count (use boolean flags)
-grep -n "!= null\|!= \"\"\|== null\|== \"\"" terraform/
-
-# 4. No inter-module dependencies
-grep -n "module\\..*\\..*=" terraform/modules/
-
-# 5. No dynamic blocks in Event Grid
-grep -n "dynamic" terraform/modules/workloads/event-grid/ | grep "service_bus"
-```
-
-**If any grep returns results**: Fix before commit!
+### Anti-Patterns
+> See `terraform-platform-instructions.md` — Anti-Pattern Detection section for the full grep validation workflow.
 
 ### Count Conditions (Boolean Flags ONLY)
 
@@ -230,76 +135,7 @@ module "container_apps" {
 - **Output**: `container_app_ready_config` — composite zero-config output bundling MI + ACR login server for Container Apps
 
 ### Deterministic Patterns
-
-**1. MD5 Naming (NOT random_string)**:
-```hcl
-# ❌ WRONG - Destroys resources on re-apply
-resource "random_string" "suffix" {
-  length = 4
-}
-
-locals {
-  name = "${var.name}-${random_string.suffix.result}"  # Changes every apply!
-}
-
-# ✅ CORRECT - Deterministic MD5
-locals {
-  md5_suffix = substr(md5(var.name), 0, 4)  # Same input = same output
-  name       = "${var.name}-${local.md5_suffix}"
-}
-
-# Platform Stack naming locals (from naming module)
-locals {
-  storage_account    = "st${replace(local.name, "-", "")}${local.location_abbr}${local.suffix}"
-  key_vault          = "kv-${local.name}-${local.location_abbr}-${local.suffix}"
-  sql_server         = "sql-${local.name}-${local.location_abbr}-${local.suffix}"
-  container_app_env  = "cae-${local.name}-${local.location_abbr}"
-  container_registry = "cr${local.name}${local.location_abbr}${local.suffix}"  # e.g., "crmyplatformeus2abc1"
-}
-```
-
-**2. uuidv5 Role Assignments (NOT omitting name)**:
-```hcl
-# ❌ WRONG - Azure generates random UUID
-resource "azurerm_role_assignment" "example" {
-  scope                = azurerm_resource.main.id
-  role_definition_name = "Contributor"
-  principal_id         = var.principal_id
-  # No 'name' = Azure assigns random ID = destroy/recreate cycle
-}
-
-# ✅ CORRECT - Deterministic uuidv5
-resource "azurerm_role_assignment" "example" {
-  name                 = uuidv5("dns", "${azurerm_resource.main.id}-${var.principal_id}-contributor")
-  scope                = azurerm_resource.main.id
-  role_definition_name = "Contributor"
-  principal_id         = var.principal_id
-}
-```
-
-**3. RBAC Propagation (180s time_sleep)**:
-```hcl
-# ❌ WRONG - Secret created before RBAC propagates
-resource "azurerm_key_vault_secret" "example" {
-  key_vault_id = azurerm_key_vault.main.id
-  depends_on   = [azurerm_role_assignment.admin]  # Not enough!
-}
-
-# ✅ CORRECT - Add time_sleep
-resource "time_sleep" "wait_for_rbac" {
-  depends_on      = [azurerm_role_assignment.admin]
-  create_duration = "180s"
-  
-  triggers = {
-    role_assignment_id = azurerm_role_assignment.admin.id
-  }
-}
-
-resource "azurerm_key_vault_secret" "example" {
-  key_vault_id = azurerm_key_vault.main.id
-  depends_on   = [time_sleep.wait_for_rbac]  # Wait for propagation
-}
-```
+> See `terraform-platform-instructions.md` for MD5 naming, uuidv5 RBAC, and 180s time_sleep patterns with ❌/✅ examples.
 
 ### State Management (CRITICAL)
 
@@ -309,8 +145,8 @@ resource "azurerm_key_vault_secret" "example" {
 # backend.tf
 terraform {
   backend "azurerm" {
-    resource_group_name  = "rg-tfstate"
-    storage_account_name = "stapplicationsautomation"
+    resource_group_name  = "rg-paas"
+    storage_account_name = "storagepaas"
     container_name       = "tfstate"
     key                  = "<project>-<tenant>-<environment>.tfstate"
 
@@ -410,12 +246,12 @@ variable "subscription_ids" {
 ```terraform
 # versions.tf
 terraform {
-  required_version = "~> 1.9.0"
+  required_version = ">= 1.9.0"
 
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.51.0"    # Allows patch updates (4.51.x)
+      version = "~> 4.57.0"    # Allows patch updates (4.57.x)
     }
     azuread = {
       source  = "hashicorp/azuread"
@@ -430,9 +266,9 @@ terraform {
 ```
 
 **Version constraint rules:**
-- ✅ Use `~> 4.51.0` - allows patch updates (4.51.1, 4.51.2)
+- ✅ Use `~> 4.57.0` - allows patch updates (4.57.1, 4.57.2)
 - ❌ NEVER use `>= 3.0` - unpinned, breaks reproducibility
-- ❌ NEVER use `= 4.51.0` - exact pin, too restrictive
+- ❌ NEVER use `= 4.57.0` - exact pin, too restrictive
 - ❌ NEVER omit version - breaks state compatibility
 
 **Before upgrading providers:**
@@ -469,8 +305,8 @@ project-root/
 ```terraform
 terraform {
   backend "azurerm" {
-    resource_group_name  = "rg-tfstate"
-    storage_account_name = "stapplicationsautomation"
+    resource_group_name  = "rg-paas"
+    storage_account_name = "storagepaas"
     container_name       = "tfstate"
     key                  = "will-be-overridden-at-runtime.tfstate"
   }
@@ -480,12 +316,12 @@ terraform {
 **providers.tf:**
 ```terraform
 terraform {
-  required_version = "~> 1.9.0"
+  required_version = ">= 1.9.0"
 
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.51.0"
+      version = "~> 4.57.0"
     }
   }
 }
@@ -593,162 +429,8 @@ output "connection_string" {
 }
 ```
 
-## Module Development Standards
-
-**Module directory structure:**
-```
-modules/terraform-azurerm-<resource>/
-├── README.md              # Module documentation
-├── main.tf                # Resource logic
-├── variables.tf           # Input declarations with validation
-├── outputs.tf             # Output declarations
-├── versions.tf            # Provider version constraints
-├── locals.tf              # Local computations (optional)
-└── examples/
-    └── basic/
-        ├── main.tf
-        └── terraform.tfvars.example
-```
-
-**Module best practices:**
-
-**variables.tf:**
-```terraform
-variable "resource_group_name" {
-  description = "Name of the resource group"
-  type        = string
-}
-
-variable "location" {
-  description = "Azure region for resources"
-  type        = string
-
-  validation {
-    condition     = contains(["eastus", "westus", "westeurope"], var.location)
-    error_message = "Location must be a supported region."
-  }
-}
-
-variable "tags" {
-  description = "Tags to apply to resources"
-  type        = map(string)
-  default     = {}
-}
-
-# Provider alias support
-variable "providers" {
-  description = "Provider configuration"
-  type = object({
-    azurerm = any
-  })
-  default = null
-}
-```
-
-**main.tf:**
-```terraform
-terraform {
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.51.0"
-      configuration_aliases = [azurerm.main]  # Support provider aliases
-    }
-  }
-}
-
-resource "azurerm_storage_account" "main" {
-  provider = var.providers != null ? var.providers.azurerm : azurerm.main
-
-  name                     = "st${var.name}${var.environment}"
-  resource_group_name      = var.resource_group_name
-  location                 = var.location
-  account_tier             = var.account_tier
-  account_replication_type = var.replication_type
-
-  tags = merge(
-    var.tags,
-    {
-      Module = "terraform-azurerm-storage"
-    }
-  )
-}
-```
-
-**outputs.tf:**
-```terraform
-# Output complete resource object (most flexible)
-output "storage_account" {
-  description = "Complete storage account resource object"
-  value       = azurerm_storage_account.main
-}
-
-# Output specific commonly-used attributes
-output "id" {
-  description = "Storage account ID"
-  value       = azurerm_storage_account.main.id
-}
-
-output "name" {
-  description = "Storage account name"
-  value       = azurerm_storage_account.main.name
-}
-
-# Output JSON summary
-output "summary" {
-  description = "Storage account summary"
-  value = jsonencode({
-    id                  = azurerm_storage_account.main.id
-    name                = azurerm_storage_account.main.name
-    primary_endpoint    = azurerm_storage_account.main.primary_blob_endpoint
-    primary_access_key  = "***SENSITIVE***"
-  })
-}
-
-# Sensitive outputs
-output "primary_connection_string" {
-  description = "Primary connection string"
-  value       = azurerm_storage_account.main.primary_connection_string
-  sensitive   = true
-}
-```
-
-**README.md template:**
-```markdown
-# Terraform Azure <Resource> Module
-
-## Description
-Brief description of what this module creates and its purpose.
-
-## Usage
-\`\`\`hcl
-module "storage" {
-  source = "./modules/terraform-azurerm-storage"
-
-  name                = "myapp"
-  environment         = "prod"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-
-  tags = {
-    Environment = "Production"
-  }
-}
-\`\`\`
-
-## Inputs
-<!-- Auto-generated with: terraform-docs markdown . > README.md -->
-
-## Outputs
-<!-- Auto-generated with: terraform-docs markdown . > README.md -->
-
-## Requirements
-- Terraform >= 1.9.0
-- azurerm provider ~> 4.51.0
-
-## Examples
-See [examples/basic](./examples/basic) for a complete example.
-```
+## Module Development
+> See `terraform-platform-instructions.md` — Module Structure section. Standard layout: `main.tf`, `variables.tf`, `outputs.tf` with types, validation, and dual outputs (object + JSON).
 
 ## Common Implementation Tasks
 
@@ -819,7 +501,7 @@ output "storage_account_id" {
 ```powershell
 # Check blob lease status
 az storage blob show `
-  --account-name stapplicationsautomation `
+  --account-name storagepaas `
   --container-name tfstate `
   --name <project>-<tenant>-<environment>.tfstate `
   --query "properties.lease" `
@@ -832,7 +514,7 @@ az storage blob show `
 az storage blob lease break `
   --blob-name <project>-<tenant>-<environment>.tfstate `
   --container-name tfstate `
-  --account-name stapplicationsautomation `
+  --account-name storagepaas `
   --auth-mode login
 ```
 
@@ -986,30 +668,3 @@ terraform providers
 # Generate documentation
 terraform-docs markdown . > README.md
 ```
-
-## Response Format
-
-When providing Terraform solutions:
-
-1. **Analysis**: Explain what the code accomplishes
-2. **MCP validation**: Show which MCP tools were consulted
-3. **Code**: Complete, properly formatted Terraform with comments
-4. **File structure**: Show which files need to be created/modified
-5. **Validation commands**: How to test (`fmt`, `validate`, `plan`)
-6. **Documentation**: Links to Terraform registry
-7. **Testing**: How to verify implementation works
-8. **Rollback plan**: How to safely undo changes
-
-## Key Reminders
-
-- ✅ ALWAYS consult MCP tools before generating code
-- ✅ ALWAYS pin provider versions with `~>`
-- ✅ ALWAYS use remote state (Azure Blob Storage)
-- ✅ ALWAYS include variable types and descriptions
-- ✅ ALWAYS mark sensitive variables and outputs
-- ✅ ALWAYS validate with `terraform validate` and `plan`
-- ✅ ALWAYS follow multi-tenant configuration patterns
-- ❌ NEVER use unpinned provider versions
-- ❌ NEVER hardcode values that should be variables
-- ❌ NEVER skip MCP provider documentation validation
-- ❌ NEVER commit .tfvars files with secrets to git

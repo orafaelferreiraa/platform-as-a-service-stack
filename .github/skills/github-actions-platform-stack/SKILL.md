@@ -216,46 +216,9 @@ jobs:
         run: terraform apply -auto-approve tfplan
 ```
 
-### Workflow 3: Validate Anti-Patterns
+### Anti-Pattern Validation Workflow
 
-**Purpose**: Detect Platform Stack anti-patterns in PR
-
-```yaml
-name: Validate Platform Code
-
-on:
-  pull_request:
-    branches:
-      - main
-
-jobs:
-  validate-anti-patterns:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Check for random_string/random_uuid
-        run: |
-          if grep -r "random_string\|random_uuid" terraform/modules/; then
-            echo "ERROR: Found random_string or random_uuid (use MD5 instead)"
-            exit 1
-          fi
-      
-      - name: Check role assignment names
-        run: |
-          if grep -n "azurerm_role_assignment" terraform/modules -r | grep -v "name ="; then
-            echo "ERROR: Found role assignments without 'name' (use uuidv5)"
-            exit 1
-          fi
-      
-      - name: Check null checks in count
-        run: |
-          if grep -n "!= null\|!= \"\"\|== null\|== \"\"" terraform/; then
-            echo "ERROR: Found null checks in count (use boolean flags only)"
-            exit 1
-          fi
-```
+> See `github-actions-platform-instructions.md` for the standard anti-pattern detection workflow YAML.
 
 ## Common Debugging Scenarios
 
@@ -310,60 +273,9 @@ jobs:
 - Implementing artifact upload for Terraform outputs
 - Troubleshooting workflow timeout or state lock issues
 
-## MANDATORY: MCP Integration Workflow
+## MCP Integration
 
-**BEFORE creating ANY new workflow, you MUST execute this workflow:**
-
-### Step 1: Search Existing Patterns (REQUIRED)
-
-```
-Use mcp_github_github_search_code:
-- Organization: stefanini-applications
-- Query: ".github/workflows <workflow-type>"
-- Purpose: Find similar existing workflows to maintain consistency
-
-Example queries:
-- ".github/workflows terraform plan"
-- ".github/workflows argocd sync"
-- ".github/workflows azure functions"
-```
-
-**Why this is critical:**
-- Maintains consistency across repositories
-- Reuses proven patterns
-- Avoids reinventing existing solutions
-- Ensures correct runner labels and secret names
-
-### Step 2: Review Project Structure (REQUIRED)
-
-```
-Use read_file to understand project context:
-
-For Terraform projects:
-- Read: backend.tf (state configuration)
-- Read: cluster-config/**/*.tfvars (multi-tenant configs)
-- Read: providers.tf (provider aliases)
-
-For ArgoCD projects:
-- Read: argocd.yaml (metadata and teams)
-- Read: resources.yaml (root application manifests)
-- Read: apps/**/* (application directory structure)
-
-For Application projects:
-- Read: package.json, requirements.txt, pom.xml (build config)
-- Read: Dockerfile (containerization)
-- Read: deployment manifests (K8s YAML)
-```
-
-### Step 3: Validate GitHub MCP Tools (OPTIONAL)
-
-```
-Use mcp_github tools for automation:
-- mcp_github_github_create_or_update_file: Create/update workflow files
-- mcp_github_github_create_pull_request: Create PR with workflow changes
-- mcp_github_github_create_branch: Create feature branch
-- mcp_github_github_request_copilot_review: Request AI code review
-```
+> **Canonical source**: See agent's MCP Tool Usage Protocol. Always search existing workflow patterns via GitHub MCP before creating new ones.
 
 ## Critical Organizational Standards
 
@@ -936,7 +848,7 @@ jobs:
   if: failure()
   run: |
     az storage blob show \
-      --account-name stapplicationsautomation \
+      --account-name storagepaas \
       --container-name tfstate \
       --name ${{ matrix.tenant }}-${{ matrix.environment }}.tfstate \
       --query "properties.lease"
@@ -974,28 +886,3 @@ ACTIONS_RUNNER_DEBUG = true
 
 Then re-run workflow to get detailed logs.
 
-## Response Format
-
-When providing workflow solutions:
-
-1. **Analysis**: Understand the requirement and workflow type
-2. **Existing patterns**: Show which workflows were consulted via MCP
-3. **Complete workflow**: Full YAML file with comments
-4. **Secrets required**: List of GitHub secrets to configure
-5. **Runner requirements**: Which self-hosted runner to use
-6. **Testing**: How to test the workflow (workflow_dispatch, dry-run)
-7. **Optimization**: Performance tips (caching, path filters, parallelism)
-8. **Troubleshooting**: Common issues and solutions
-
-## Key Reminders
-
-- ✅ ALWAYS search existing workflows via MCP before creating new ones
-- ✅ ALWAYS use correct self-hosted runner labels
-- ✅ ALWAYS add path filters to reduce unnecessary runs
-- ✅ ALWAYS use concurrency control for Terraform (cancel-in-progress: false)
-- ✅ ALWAYS add environment approvals for production deployments
-- ✅ ALWAYS validate YAML syntax before committing
-- ❌ NEVER hardcode secrets in workflows
-- ❌ NEVER use GitHub-hosted runners for private Azure resources
-- ❌ NEVER cancel Terraform applies mid-execution
-- ❌ NEVER forget to set timeout limits for long-running jobs
