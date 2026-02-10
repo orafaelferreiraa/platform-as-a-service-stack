@@ -75,7 +75,7 @@ terraform/
 
 # External Modules (pinned git refs — NOT in modules/ tree)
 # └── Container Registry (ACR)
-#     Source: git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2
+#     Source: git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3
 ```
 
 ---
@@ -301,7 +301,7 @@ module "storage" {
 module "container_registry" {
   count = var.enable_container_registry ? 1 : 0
   
-  source                        = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+  source                        = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3"
   name                          = module.naming.container_registry
   location                      = var.location
   resource_group_name           = module.resource_group.name
@@ -583,7 +583,7 @@ mcp_hashicorp_ter_get_latest_provider_version(namespace: "hashicorp", name: "tim
 
 ```terraform
 # ✅ CORRECT - Pinned to specific tag
-source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3"
 
 # ❌ WRONG - Floating branch (non-deterministic)
 source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=main"
@@ -971,7 +971,7 @@ done
 - **Storage Module**: [terraform/modules/workloads/storage-account/main.tf](../../terraform/modules/workloads/storage-account/main.tf)
 - **SQL Module**: [terraform/modules/workloads/sql/main.tf](../../terraform/modules/workloads/sql/main.tf)
 - **Key Vault Module**: [terraform/modules/security/key-vault/main.tf](../../terraform/modules/security/key-vault/main.tf)
-- **Container Registry Module (External)**: [tfmodules-as-a-service-stack/modules/azurerm_container_registry](https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack/tree/1.0.2/modules/azurerm_container_registry)
+- **Container Registry Module (External)**: [tfmodules-as-a-service-stack/modules/azurerm_container_registry](https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack/tree/1.0.3/modules/azurerm_container_registry)
 
 ---
 

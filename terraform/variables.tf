@@ -74,20 +74,9 @@ variable "sql_administrator_login" {
 }
 
 variable "enable_container_registry" {
-  description = "Enable Container Registry (ACR)"
+  description = "Enable Container Registry (ACR) — currently disabled"
   type        = bool
-  default     = true
-}
-
-variable "container_registry_sku" {
-  description = "SKU of the Container Registry. Possible values: Basic, Standard, Premium"
-  type        = string
-  default     = "Basic"
-
-  validation {
-    condition     = contains(["Basic", "Standard", "Premium"], var.container_registry_sku)
-    error_message = "SKU must be Basic, Standard, or Premium."
-  }
+  default     = false
 }
 
 variable "enable_container_apps" {
@@ -96,9 +85,19 @@ variable "enable_container_apps" {
   default     = true
 }
 
-# Common tags
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
   default     = {}
 }
+
+# variable "container_registry_sku" {
+#   description = "SKU of the Container Registry. Possible values: Basic, Standard, Premium"
+#   type        = string
+#   default     = "Basic"
+#
+#   validation {
+#     condition     = contains(["Basic", "Standard", "Premium"], var.container_registry_sku)
+#     error_message = "SKU must be Basic, Standard, or Premium."
+#   }
+# }

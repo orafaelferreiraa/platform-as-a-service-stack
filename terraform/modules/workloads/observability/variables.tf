@@ -1,8 +1,3 @@
-variable "name" {
-  description = "Base name for observability resources"
-  type        = string
-}
-
 variable "location" {
   description = "Azure region"
   type        = string

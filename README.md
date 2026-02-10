@@ -20,7 +20,7 @@ Azure infrastructure platform for accelerating product development through compo
 - **Foundation**: Resource Group (with `prevent_destroy`), Naming Convention, Managed Identity
 - **Networking**: VNet Spoke with default + delegated subnets for Container Apps
 - **Security**: Key Vault (RBAC-enabled), Managed Identity
-- **Workloads**: Storage Account (Azure AD only), Service Bus (Premium), Event Grid, SQL Server (AAD admin), Observability, Container Registry (ACR), Container Apps
+- **Workloads**: Storage Account (Azure AD only), Service Bus (Standard), Event Grid, SQL Server (AAD admin), Observability, Container Registry (ACR), Container Apps
 - **Zero-Config Integration**: Container Apps Environment ships with MI attached + ACR roles pre-wired — devs only set image name
 
 ---
@@ -288,14 +288,14 @@ enable_container_apps     = false
 - **RBAC Authorization**: Always enabled (`enable_rbac_authorization = true`)
 - **RBAC Propagation**: Uses `time_sleep` with 180s delay to wait for RBAC propagation before creating secrets
 - **Soft Delete**: 7-day retention (safeguard for accidental deletion recovery)
-- **Purge Protection**: Disabled (to allow cleanup during terraform destroy)
+- **Purge Protection**: Enabled (data protection safeguard)
 - **SKU**: Standard tier
 - **Current Principal**: Automatically granted Key Vault Administrator role via uuidv5
 - **No secret exposure**: Outputs only contain IDs and URIs, never secret values
 
 ### Container Registry
 
-- **External Module**: Sourced from `tfmodules-as-a-service-stack` (`git::https://...?ref=1.0.2`)
+- **External Module**: Sourced from `tfmodules-as-a-service-stack` (`git::https://...?ref=1.0.3`)
 - **SKU**: Configurable via `container_registry_sku` (Basic, Standard, Premium) — default: Basic
 - **RBAC Roles**: When MI is enabled, AcrPush + AcrPull are automatically assigned to the platform Managed Identity
 - **Identity Attached**: MI resource ID attached to the registry itself (UserAssigned)
@@ -330,7 +330,7 @@ All resources follow [Microsoft Cloud Adoption Framework](https://learn.microsof
 | Managed Identity | `id-{name}-{region}` | `id-myplatform-eus2` | User-Assigned type |
 | Key Vault | `kv{name}{region}{md5}` | `kvmyplatformeus2abc1` | RBAC-enabled, 180s RBAC propagation delay |
 | Storage Account | `st{name}{region}{md5}` | `stmyplatformeus2abc1` | No shared keys, Azure AD only, blobs + containers |
-| Service Bus | `sb-{name}-{region}-{md5}` | `sb-myplatform-eus2-abc1` | Premium tier, includes Queue and Topic |
+| Service Bus | `sb-{name}-{region}-{md5}` | `sb-myplatform-eus2-abc1` | Standard tier, includes Queue and Topic |
 | Event Grid Domain | `evgd-{name}-{region}` | `evgd-myplatform-eus2` | Domain type for event routing, Service Bus integration |
 | SQL Server | `sql-{name}-{region}-{md5}` | `sql-myplatform-eus2-abc1` | System-Assigned identity, AAD admin, TLS 1.2+ |
 | SQL Database | `sqldb-{name}-{region}` | `sqldb-myplatform-eus2` | Elastic pool compatible, diagnostic logging |
@@ -518,7 +518,7 @@ MIT License - see [LICENSE](LICENSE) for details
 | Name | Source | Version |
 |------|--------|---------|
 | <a name="module_container_apps"></a> [container\_apps](#module\_container\_apps) | ./modules/workloads/container-apps | n/a |
-| <a name="module_container_registry"></a> [container\_registry](#module\_container\_registry) | git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry | 1.0.2 |
+| <a name="module_container_registry"></a> [container\_registry](#module\_container\_registry) | git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry | 1.0.3 |
 | <a name="module_event_grid"></a> [event\_grid](#module\_event\_grid) | ./modules/workloads/event-grid | n/a |
 | <a name="module_key_vault"></a> [key\_vault](#module\_key\_vault) | ./modules/security/key-vault | n/a |
 | <a name="module_managed_identity"></a> [managed\_identity](#module\_managed\_identity) | ./modules/security/managed-identity | n/a |
@@ -534,8 +534,6 @@ MIT License - see [LICENSE](LICENSE) for details
 
 | Name | Type |
 |------|------|
-| [azurerm_role_assignment.sql_key_vault_access](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
-| [null_resource.validate_container_apps](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) | data source |
 
 ## Inputs

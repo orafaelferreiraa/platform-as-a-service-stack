@@ -42,8 +42,3 @@ variable "managed_identity_id" {
   default     = null
 }
 
-variable "container_registry_login_server" {
-  description = "Login server URL of the Container Registry. When provided with managed_identity_id, the environment is pre-configured for ACR integration"
-  type        = string
-  default     = null
-}

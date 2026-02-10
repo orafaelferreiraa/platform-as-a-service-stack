@@ -128,7 +128,7 @@ module "container_apps" {
 | `enable_container_apps` | Container Apps | **Observability** | VNet, Container Registry + MI |
 
 **Container Registry Details**:
-- **Source**: External module from `tfmodules-as-a-service-stack` (`git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2`)
+- **Source**: External module from `tfmodules-as-a-service-stack` (`git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3`)
 - **SKU**: Controlled by `container_registry_sku` (string, default `"Basic"`)
 - **RBAC**: When `enable_managed_identity = true`, AcrPush + AcrPull roles are auto-assigned to the Managed Identity
 - **Container Apps Integration**: When both `enable_container_registry` and `enable_managed_identity` are true, Container Apps receives MI pre-attached + ACR `login_server`

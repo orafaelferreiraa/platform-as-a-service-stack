@@ -11,15 +11,6 @@ locals {
   )
 }
 
-# Validation: Container Apps requires Observability
-resource "null_resource" "validate_container_apps" {
-  count = var.enable_container_apps && !var.enable_observability ? 1 : 0
-
-  provisioner "local-exec" {
-    command = "echo 'ERROR: Container Apps requires Observability (enable_observability = true)' && exit 1"
-  }
-}
-
 # Foundation: Naming Convention
 module "naming" {
   source   = "./modules/foundation/naming"
@@ -60,7 +51,6 @@ module "vnet_spoke" {
 module "observability" {
   count               = var.enable_observability ? 1 : 0
   source              = "./modules/workloads/observability"
-  name                = var.name
   location            = var.location
   resource_group_name = module.resource_group.name
   naming              = module.naming
@@ -124,8 +114,6 @@ module "sql" {
   location                     = var.location
   resource_group_name          = module.resource_group.name
   administrator_login          = var.sql_administrator_login
-  enable_managed_identity      = var.enable_managed_identity
-  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
   managed_identity_resource_id = var.enable_managed_identity ? module.managed_identity[0].id : null
   vnet_subnet_ids              = var.enable_vnet ? [module.vnet_spoke[0].default_subnet_id] : []
   tags                         = local.base_tags
@@ -155,19 +143,27 @@ module "key_vault" {
 }
 
 # Workloads: Container Registry (optional) - RBAC auto-configured when MI is provided
-module "container_registry" {
-  count                        = var.enable_container_registry ? 1 : 0
-  source                       = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3"
-  name                         = module.naming.container_registry
-  location                     = var.location
-  resource_group_name          = module.resource_group.name
-  sku                          = var.container_registry_sku
-  enable_managed_identity      = var.enable_managed_identity
-  managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
-  managed_identity_resource_id = var.enable_managed_identity ? module.managed_identity[0].id : null
-  tags                         = local.base_tags
-  enable_observability         = var.enable_observability
-  log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
+# module "container_registry" {
+#   count                        = var.enable_container_registry ? 1 : 0
+#   source                       = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3"
+#   name                         = module.naming.container_registry
+#   location                     = var.location
+#   resource_group_name          = module.resource_group.name
+#   sku                          = var.container_registry_sku
+#   enable_managed_identity      = var.enable_managed_identity
+#   managed_identity_id          = var.enable_managed_identity ? module.managed_identity[0].principal_id : null
+#   managed_identity_resource_id = var.enable_managed_identity ? module.managed_identity[0].id : null
+#   tags                         = local.base_tags
+#   enable_observability         = var.enable_observability
+#   log_analytics_workspace_id   = var.enable_observability ? module.observability[0].log_analytics_id : null
+# }
+
+# Validation: Container Apps requires Observability
+check "container_apps_requires_observability" {
+  assert {
+    condition     = !var.enable_container_apps || var.enable_observability
+    error_message = "Container Apps requires Observability (enable_observability = true)"
+  }
 }
 
 # Workloads: Container Apps Environment (optional) - requires Observability, MI + ACR pre-wired
@@ -180,7 +176,6 @@ module "container_apps" {
   log_analytics_workspace_id      = module.observability[0].log_analytics_id
   infrastructure_subnet_id        = var.enable_vnet ? module.vnet_spoke[0].container_apps_subnet_id : null
   managed_identity_id             = var.enable_managed_identity ? module.managed_identity[0].id : null
-  container_registry_login_server = var.enable_container_registry ? module.container_registry[0].login_server : null
   tags                            = local.base_tags
 }
 

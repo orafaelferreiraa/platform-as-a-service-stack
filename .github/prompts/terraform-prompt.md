@@ -64,7 +64,7 @@ External modules live in separate repos and are sourced via git ref:
 ```hcl
 module "container_registry" {
   count  = var.enable_container_registry ? 1 : 0
-  source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+  source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3"
 
   name     = module.naming.container_registry_name  # cr{name}{region}{md5}
   location = var.location

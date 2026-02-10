@@ -145,7 +145,7 @@ provider "azurerm" {
 **Module source:**
 ```hcl
 module "container_registry" {
-  source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.2"
+  source = "git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry?ref=1.0.3"
   count  = var.enable_container_registry ? 1 : 0
 
   name                = module.naming.container_registry  # "cr{name}{md5}" e.g. "crmyplatformeus2abc1"
@@ -224,7 +224,7 @@ output "container_app_ready_config" {
 ```
 
 **Key points:**
-- External module: pinned at `ref=1.0.2` from `tfmodules-as-a-service-stack`
+- External module: pinned at `ref=1.0.3` from `tfmodules-as-a-service-stack`
 - Naming: `cr{name}{region}{md5}` (no hyphens — Azure ACR doesn't allow them)
 - RBAC: AcrPush + AcrPull auto-assigned to Managed Identity via uuidv5
 - Container Apps: MI pre-attached to Environment + ACR `login_server` passed through (zero-config pull)

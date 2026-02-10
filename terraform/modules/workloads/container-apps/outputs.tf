@@ -23,7 +23,3 @@ output "managed_identity_id" {
   value       = var.managed_identity_id
 }
 
-output "container_registry_login_server" {
-  description = "Login server URL of the pre-configured Container Registry (null if not configured)"
-  value       = var.container_registry_login_server
-}
