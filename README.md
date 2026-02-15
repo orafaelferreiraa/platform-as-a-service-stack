@@ -85,6 +85,53 @@ All resources are controlled via boolean feature flags. Enable only what you nee
 
 ## Resource Dependencies
 
+### Visão Simplificada
+
+```mermaid
+graph TD
+    subgraph "🏗️ 1. BASE"
+        RG["Resource Group<br/>"]
+    end
+
+    subgraph "🧱 2. FUNDAÇÃO"
+        MI["🔐 Identidade<br/>"]
+        VNET["🌐 Rede Virtual<br/>"]
+        OBS["📊 Monitoramento<br/>"]
+    end
+
+    subgraph "🏠 3. SERVIÇOS"
+        STORAGE["📦 Storage<br/>"]
+        SB["📨 Service Bus<br/>"]
+        EG["⚡ Event Grid<br/>"]
+        SQL["🗄️ SQL Database<br/>"]
+        KV["🔐 Key Vault<br/>"]
+        ACR["📦 Container Registry<br/>"]
+    end
+
+    subgraph "🚀 4. APLICAÇÃO"
+        CA["🚀 Container Apps<br/>"]
+    end
+
+    RG --> MI
+    RG --> VNET
+    RG --> OBS
+
+    MI -.-> STORAGE
+    MI -.-> SB
+    MI -.-> EG
+    MI -.-> SQL
+    MI -.-> KV
+    MI -.-> ACR
+
+    OBS ==>|"⚠️ obrigatório"| CA
+    VNET -.->|opcional| CA
+    ACR -.->|opcional| CA
+    MI -.->|opcional| CA
+```
+---
+
+### Visão Detalhada
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        RECURSOS INDEPENDENTES                                │
