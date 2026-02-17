@@ -2,8 +2,6 @@
 
 Plataforma de infraestrutura Azure para acelerar o desenvolvimento de produtos através de capacidades de infraestrutura composíveis, seguras e reutilizáveis.
 
-> **Versão 3.0.0**: Implementação completa com convenções de nomenclatura determinísticas (sufixos MD5), segurança baseada em RBAC e feature flags abrangentes.
-
 ---
 
 ## O que é Engenharia de Plataforma?
@@ -301,262 +299,155 @@ Todos os recursos seguem os padrões do [Microsoft Cloud Adoption Framework](htt
 
 ---
 
-## Estrutura do Repositório
+## Arquitetura Técnica
 
-```
-platform-as-a-service-stack/
-├── .github/
-│   ├── agents/                      # Definições de agentes Copilot
-│   │   ├── agent.agent.md
-│   │   ├── azure-agent.md
-│   │   ├── github-actions-agent.md
-│   │   └── terraform-agent.md
-│   ├── instructions/                # Instruções de codificação Copilot
-│   │   ├── azure-instructions.md
-│   │   ├── github-actions-platform-instructions.md
-│   │   └── terraform-platform-instructions.md
-│   ├── prompts/                     # Templates de prompts Copilot
-│   │   ├── azure-prompt.md
-│   │   ├── github-actions-prompt.md
-│   │   └── terraform-prompt.md
-│   ├── skills/                      # Skills do Copilot
-│   │   ├── azure-platform-stack/
-│   │   ├── github-actions-platform-stack/
-│   │   └── terraform-platform-stack/
-│   └── workflows/
-│       ├── deploy-apply.yml         # Workflow de Apply (push main / manual)
-│       └── deploy-plan.yml          # Workflow de Plan (PR main / manual)
-├── terraform/
-│   ├── modules/
-│   │   ├── foundation/
-│   │   │   ├── naming/              # Módulo de convenção de nomenclatura
-│   │   │   └── resource-group/      # Módulo de resource group
-│   │   ├── networking/
-│   │   │   └── vnet-spoke/          # Módulo de rede virtual
-│   │   ├── security/
-│   │   │   ├── managed-identity/    # Módulo de managed identity
-│   │   │   └── key-vault/           # Módulo de key vault
-│   │   └── workloads/
-│   │       ├── storage-account/     # Módulo de storage account
-│   │       ├── service-bus/         # Módulo de Service Bus
-│   │       ├── event-grid/          # Módulo de Event Grid
-│   │       ├── observability/       # Log Analytics + App Insights
-│   │       ├── sql/                 # SQL Server & Database
-│   │       └── container-apps/      # Módulo de Container Apps
-│   │       # container-registry → externo: tfmodules-as-a-service-stack
-│   ├── backend.tf                   # Configuração de state remoto
-│   ├── providers.tf                 # Configuração de providers
-│   ├── main.tf                      # Orquestração do módulo raiz
-│   ├── variables.tf                 # Variáveis de entrada com feature flags
-│   └── outputs.tf                   # Outputs da plataforma
-├── prompt.md                        # Especificação do projeto
-└── README.md                        # Este arquivo
-```
+> Seção para quem curte IaC, Terraform e feature engineering. Todos os diagramas abaixo refletem a implementação real do projeto.
 
-<!-- BEGIN_TF_DOCS -->
-## Requisitos
+### CI/CD Pipeline — GitHub Actions
 
-| Nome | Versão |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | ~> 4.57 |
-| <a name="requirement_null"></a> [null](#requirement\_null) | ~> 3.2 |
-| <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.8 |
-| <a name="requirement_time"></a> [time](#requirement\_time) | ~> 0.13 |
-
-## Provedores
-
-| Nome | Versão |
-|------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | ~> 4.57 |
-| <a name="provider_null"></a> [null](#provider\_null) | ~> 3.2 |
-
-## Módulos
-
-| Nome | Fonte | Versão |
-|------|--------|---------|
-| <a name="module_container_apps"></a> [container\_apps](#module\_container\_apps) | ./modules/workloads/container-apps | n/a |
-| <a name="module_container_registry"></a> [container\_registry](#module\_container\_registry) | git::https://github.com/orafaelferreiraa/tfmodules-as-a-service-stack.git//modules/azurerm_container_registry | 1.0.3 |
-| <a name="module_event_grid"></a> [event\_grid](#module\_event\_grid) | ./modules/workloads/event-grid | n/a |
-| <a name="module_key_vault"></a> [key\_vault](#module\_key\_vault) | ./modules/security/key-vault | n/a |
-| <a name="module_managed_identity"></a> [managed\_identity](#module\_managed\_identity) | ./modules/security/managed-identity | n/a |
-| <a name="module_naming"></a> [naming](#module\_naming) | ./modules/foundation/naming | n/a |
-| <a name="module_observability"></a> [observability](#module\_observability) | ./modules/workloads/observability | n/a |
-| <a name="module_resource_group"></a> [resource\_group](#module\_resource\_group) | ./modules/foundation/resource-group | n/a |
-| <a name="module_service_bus"></a> [service\_bus](#module\_service\_bus) | ./modules/workloads/service-bus | n/a |
-| <a name="module_sql"></a> [sql](#module\_sql) | ./modules/workloads/sql | n/a |
-| <a name="module_storage_account"></a> [storage\_account](#module\_storage\_account) | ./modules/workloads/storage-account | n/a |
-| <a name="module_vnet_spoke"></a> [vnet\_spoke](#module\_vnet\_spoke) | ./modules/networking/vnet-spoke | n/a |
-
-## Recursos
-
-| Nome | Tipo |
-|------|------|
-| [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) | data source |
-
-## Entradas
-
-| Nome | Descrição | Tipo | Padrão | Obrigatório |
-|------|-------------|------|---------|:--------:|
-| <a name="input_enable_container_apps"></a> [enable\_container\_apps](#input\_enable\_container\_apps) | Habilitar Container Apps Environment | `bool` | `true` | não |
-| <a name="input_enable_container_registry"></a> [enable\_container\_registry](#input\_enable\_container\_registry) | Habilitar Container Registry (ACR) | `bool` | `true` | não |
-| <a name="input_container_registry_sku"></a> [container\_registry\_sku](#input\_container\_registry\_sku) | SKU do Container Registry. Valores possíveis: Basic, Standard, Premium | `string` | `"Basic"` | não |
-| <a name="input_enable_event_grid"></a> [enable\_event\_grid](#input\_enable\_event\_grid) | Habilitar Event Grid | `bool` | `true` | não |
-| <a name="input_enable_key_vault"></a> [enable\_key\_vault](#input\_enable\_key\_vault) | Habilitar Key Vault | `bool` | `true` | não |
-| <a name="input_enable_managed_identity"></a> [enable\_managed\_identity](#input\_enable\_managed\_identity) | Habilitar Managed Identity (necessário para: Storage, Service Bus, Event Grid, SQL, Key Vault para RBAC) | `bool` | `true` | não |
-| <a name="input_enable_observability"></a> [enable\_observability](#input\_enable\_observability) | Habilitar Observabilidade (Log Analytics, Application Insights) | `bool` | `true` | não |
-| <a name="input_enable_service_bus"></a> [enable\_service\_bus](#input\_enable\_service\_bus) | Habilitar Service Bus | `bool` | `true` | não |
-| <a name="input_enable_sql"></a> [enable\_sql](#input\_enable\_sql) | Habilitar SQL Server e Database | `bool` | `true` | não |
-| <a name="input_enable_storage"></a> [enable\_storage](#input\_enable\_storage) | Habilitar Storage Account | `bool` | `true` | não |
-| <a name="input_enable_vnet"></a> [enable\_vnet](#input\_enable\_vnet) | Habilitar Virtual Network Spoke | `bool` | `true` | não |
-| <a name="input_location"></a> [location](#input\_location) | Região Azure para os recursos | `string` | `"eastus2"` | não |
-| <a name="input_name"></a> [name](#input\_name) | Nome da plataforma (time ou produto - alfanumérico minúsculo) | `string` | n/a | sim |
-| <a name="input_sql_administrator_login"></a> [sql\_administrator\_login](#input\_sql\_administrator\_login) | Nome de login do administrador do SQL Server | `string` | `"sql_admin"` | não |
-| <a name="input_subscription_id"></a> [subscription\_id](#input\_subscription\_id) | ID da Assinatura Azure | `string` | n/a | sim |
-| <a name="input_tags"></a> [tags](#input\_tags) | Tags comuns para aplicar em todos os recursos | `map(string)` | `{}` | não |
-
-## Saídas
-
-| Nome | Descrição |
-|------|-------------|
-| <a name="output_application_insights_connection_string"></a> [application\_insights\_connection\_string](#output\_application\_insights\_connection\_string) | String de conexão do Application Insights |
-| <a name="output_application_insights_instrumentation_key"></a> [application\_insights\_instrumentation\_key](#output\_application\_insights\_instrumentation\_key) | Chave de instrumentação do Application Insights |
-| <a name="output_container_apps_environment_id"></a> [container\_apps\_environment\_id](#output\_container\_apps\_environment\_id) | ID do Container Apps Environment |
-| <a name="output_container_apps_environment_name"></a> [container\_apps\_environment\_name](#output\_container\_apps\_environment\_name) | Nome do Container Apps Environment |
-| <a name="output_container_apps_environment_default_domain"></a> [container\_apps\_environment\_default\_domain](#output\_container\_apps\_environment\_default\_domain) | Domínio padrão do Container Apps Environment |
-| <a name="output_container_apps_environment_static_ip"></a> [container\_apps\_environment\_static\_ip](#output\_container\_apps\_environment\_static\_ip) | IP estático do Container Apps Environment |
-| <a name="output_container_app_ready_config"></a> [container\_app\_ready\_config](#output\_container\_app\_ready\_config) | Config zero para Container Apps. MI anexada ao Environment com AcrPull/AcrPush no ACR |
-| <a name="output_container_registry_id"></a> [container\_registry\_id](#output\_container\_registry\_id) | ID do Container Registry |
-| <a name="output_container_registry_name"></a> [container\_registry\_name](#output\_container\_registry\_name) | Nome do Container Registry |
-| <a name="output_container_registry_login_server"></a> [container\_registry\_login\_server](#output\_container\_registry\_login\_server) | URL do login server do Container Registry |
-| <a name="output_event_grid_domain_id"></a> [event\_grid\_domain\_id](#output\_event\_grid\_domain\_id) | ID do domínio Event Grid |
-| <a name="output_key_vault_id"></a> [key\_vault\_id](#output\_key\_vault\_id) | ID do Key Vault |
-| <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | URI do Key Vault |
-| <a name="output_log_analytics_workspace_id"></a> [log\_analytics\_workspace\_id](#output\_log\_analytics\_workspace\_id) | ID do Log Analytics Workspace |
-| <a name="output_managed_identity_client_id"></a> [managed\_identity\_client\_id](#output\_managed\_identity\_client\_id) | Client ID da managed identity |
-| <a name="output_managed_identity_id"></a> [managed\_identity\_id](#output\_managed\_identity\_id) | ID da managed identity |
-| <a name="output_managed_identity_principal_id"></a> [managed\_identity\_principal\_id](#output\_managed\_identity\_principal\_id) | Principal ID da managed identity |
-| <a name="output_resource_group_id"></a> [resource\_group\_id](#output\_resource\_group\_id) | ID do resource group |
-| <a name="output_resource_group_name"></a> [resource\_group\_name](#output\_resource\_group\_name) | Nome do resource group |
-| <a name="output_service_bus_namespace_id"></a> [service\_bus\_namespace\_id](#output\_service\_bus\_namespace\_id) | ID do namespace do Service Bus |
-| <a name="output_service_bus_namespace_name"></a> [service\_bus\_namespace\_name](#output\_service\_bus\_namespace\_name) | Nome do namespace do Service Bus |
-| <a name="output_sql_database_id"></a> [sql\_database\_id](#output\_sql\_database\_id) | ID do banco de dados SQL |
-| <a name="output_sql_server_fqdn"></a> [sql\_server\_fqdn](#output\_sql\_server\_fqdn) | FQDN do servidor SQL |
-| <a name="output_sql_server_id"></a> [sql\_server\_id](#output\_sql\_server\_id) | ID do servidor SQL |
-| <a name="output_storage_account_id"></a> [storage\_account\_id](#output\_storage\_account\_id) | ID da storage account |
-| <a name="output_storage_account_name"></a> [storage\_account\_name](#output\_storage\_account\_name) | Nome da storage account |
-| <a name="output_vnet_id"></a> [vnet\_id](#output\_vnet\_id) | ID da VNet |
-| <a name="output_vnet_name"></a> [vnet\_name](#output\_vnet\_name) | Nome da VNet |
-<!-- END_TF_DOCS -->
-
----
-
-## Diagrama de Arquitetura
+2 workflows coordenados: `deploy-plan.yml` (PR) e `deploy-apply.yml` (push main). Ambos executam validação via `pipeline-as-a-service-stack` (TFLint, tfsec, Checkov, terraform-docs). Apply dispara automaticamente após merge. Reusable workflow externo centraliza todas as validações de segurança e infraestrutura.
 
 ```mermaid
-graph TB
-    plan["☁️ deploy-plan.yml<br/>(PR / manual)"]
+flowchart TB
+    subgraph trigger["🎯 Triggers"]
+        pr_create["🔀 PR → main<br/><code>terraform/**</code>"]
+        push_main["📌 push main<br/><code>terraform/**</code>"]
+        wf_dispatch["🖱️ workflow_dispatch<br/>(manual)</code>"]
+    end
 
-    subgraph PIPE["📂 pipeline-as-a-service-stack"]
+    subgraph plan_wf["📋 deploy-plan.yml"]
         direction TB
-        tflint["1. TFLint - Linting e Boas Práticas"]
-        tfsec["2. tfsec - Análise de Segurança Estática"]
-        checkov["3. Checkov - Segurança e Conformidade"]
-        tflint --> tfsec --> checkov
+        plan_core["🔧 Pipeline Core Validation<br/><i>orafaelferreiraa/pipeline-as-a-service-stack</i>"]
+        plan_core --> tflint_p["🔍 tflint"]
+        tflint_p --> tfsec_p["🛡️ tfsec"]
+        tfsec_p --> checkov_p["✅ checkov"]
+        checkov_p --> tf_plan["📝 terraform plan<br/><code>-out=tfplan</code>"]
+        tf_plan --> plan_artifact["📤 Upload Artifact<br/><code>terraform-plan (7d)</code>"]
+        tf_plan --> pr_comment["💬 PR Comment<br/><code>actions/github-script@v7</code>"]
     end
 
-    apply["☁️ deploy-apply.yml<br/>(push main / manual)"]
-
-    plan --> PIPE
-    PIPE --> apply
-    apply --> STATE
-    STATE -->|terraform state| TF
-
-    subgraph STATE["Azure - TF State Remoto"]
-        state_rg["📁 Resource Group<br/><i>rg-paas</i>"]
-        state_sa["📦 Storage Account<br/><i>storagepaas</i>"]
-        state_blob["📄 Blob Container<br/><i>tfstate/*.tfstate</i>"]
-        state_rg --- state_sa --- state_blob
-    end
-
-    subgraph TF["📂 platform-as-a-service-stack"]
+    subgraph apply_wf["🚀 deploy-apply.yml"]
         direction TB
+        apply_check["⚠️ Check State Protection<br/><code>Previne destruição acidental</code>"]
+        apply_core["🔧 Pipeline Core Validation<br/><i>pipeline-as-a-service-stack</i>"]
+        apply_check --> apply_core
+        apply_core --> tflint_a["🔍 tflint"]
+        tflint_a --> tfsec_a["🛡️ tfsec"]
+        tfsec_a --> checkov_a["✅ checkov"]
+        checkov_a --> tf_apply["⚡ terraform apply<br/><code>-auto-approve</code>"]
+        tf_apply --> tfdocs["📄 terraform-docs<br/><code>inject → README.md</code>"]
+        tfdocs --> docs_commit["🤖 git commit + push<br/><code>github-actions[bot]</code>"]
+    end
 
-        subgraph Foundation["🏗️ Fundação"]
-            naming["Convenção de Nomenclatura<br/><i>Sufixos MD5 determinísticos</i>"]
-            rg["✅ Resource Group<br/>"]
+    subgraph azure["☁️ Azure Cloud"]
+        direction TB
+        rg["📁 Resource Group<br/><code>rg-{name}-{region}</code><br/>prevent_destroy: true"]
+        state["💾 Azure Blob Storage<br/><code>state backend<br/>use_azuread_auth: true</code>"]
+        resources["🏗️ Azure Resources<br/><code>VNet, Storage, SQL,<br/>Key Vault, Container Apps...</code>"]
+        rg --> resources
+        resources -.->|"state read/write"| state
+    end
+
+    pr_create --> plan_wf
+    push_main --> apply_wf
+    wf_dispatch --> plan_wf
+    wf_dispatch --> apply_wf
+    
+    plan_wf -->|"PR approved + merge"| apply_wf
+    apply_wf -->|"azurerm provider<br/>v4.57+"| azure
+
+    style trigger fill:#0d1117,color:#c9d1d9,stroke:#30363d
+    style plan_wf fill:#0d1117,color:#c9d1d9,stroke:#30363d
+    style apply_wf fill:#0d1117,color:#c9d1d9,stroke:#30363d
+    style azure fill:#0078D4,color:#fff,stroke:#005a9e
+    style pr_create fill:#059669,color:#fff
+    style push_main fill:#7c3aed,color:#fff
+    style wf_dispatch fill:#6b7280,color:#fff
+    style plan_core fill:#3b82f6,color:#fff
+    style apply_core fill:#3b82f6,color:#fff
+    style apply_check fill:#f59e0b,color:#000
+    style tf_apply fill:#10b981,color:#fff
+    style tf_plan fill:#10b981,color:#fff
+    style rg fill:#0078D4,color:#fff
+    style resources fill:#0078D4,color:#fff
+    style state fill:#0078D4,color:#fff
+```
+
+### Infrastructure Architecture — Feature Flags & Dependencies
+
+Toda a infraestrutura é controlada por feature flags booleanos (`enable_*`). Cada recurso declara suas dependências explicitamente. Container Apps é o único recurso com dependência obrigatória (requer Observability). Managed Identity é fortemente recomendado para RBAC automático.
+
+```mermaid
+flowchart TB
+    subgraph base["🏗️ CAMADA 1: BASE"]
+        RG["📁 Resource Group<br/><code>rg-{name}-{region}</code><br/>✓ Sempre criado<br/>prevent_destroy: true"]
+    end
+
+    subgraph foundation["🧱 CAMADA 2: FUNDAÇÃO · Independentes"]
+        direction LR
+        MI["🔐 Managed Identity<br/><code>id-{name}-{region}</code><br/>📌 enable_managed_identity<br/>⚠️ Recomendado"]
+        VNET["🌐 Virtual Network<br/><code>vnet-{name}-{region}</code><br/>📌 enable_vnet<br/>Subnets: default + delegadas"]
+        OBS["📊 Observability<br/><code>Log Analytics + App Insights</code><br/>📌 enable_observability<br/>⚠️ OBRIGATÓRIO para CA"]
+    end
+
+    subgraph services["🏠 CAMADA 3: SERVIÇOS · Usa Fundação Opcionalmente"]
+        direction TB
+        
+        subgraph storage_group["Storage & Secrets"]
+            STORAGE["📦 Storage Account<br/><code>st{name}{region}{md5}</code><br/>📌 enable_storage<br/>Usa: MI, VNet"]
+            KV["🔐 Key Vault<br/><code>kv{name}{region}{md5}</code><br/>📌 enable_key_vault<br/>Usa: MI, SQL password*<br/>Delay RBAC: 180s"]
         end
 
-        subgraph Security["🔐 Segurança"]
-            mi["Managed Identity<br/><i>User-Assigned</i>"]
-            kv["🔒 Key Vault<br/><i>RBAC habilitado</i>"]
+        subgraph messaging_group["Messaging & Events"]
+            SB["📨 Service Bus<br/><code>sb-{name}-{region}-{md5}</code><br/>📌 enable_service_bus<br/>Usa: MI<br/>Tier: Standard"]
+            EG["⚡ Event Grid<br/><code>evgd-{name}-{region}</code><br/>📌 enable_event_grid<br/>Usa: MI, Service Bus"]
         end
 
-        subgraph Networking["🌐 Rede"]
-            vnet["🌐 VNet Spoke<br/><i>subnets default + CA</i>"]
+        subgraph data_group["Data & Databases"]
+            SQL["🗄️ SQL Server & DB<br/><code>sql-{name}-{region}-{md5}</code><br/>📌 enable_sql<br/>Usa: MI, VNet<br/>Admin: Azure AD"]
         end
 
-        subgraph Workloads["⚙️ Workloads"]
-            obs["📊 Observabilidade<br/><i>Log Analytics + App Insights</i>"]
-            sa["📦 Storage Account"]
-            sb["📨 Service Bus"]
-            eg["⚡ Event Grid"]
-            sql["🗄️ SQL Server e DB"]
-            cae["📦 Azure Container Apps"]
+        subgraph registry_group["Registry & Containers"]
+            ACR["📦 Container Registry<br/><code>cr{name}{region}{md5}</code><br/>📌 enable_container_registry<br/>Usa: MI<br/>SKU: Basic/Standard/Premium"]
         end
     end
 
-    subgraph TFMOD["📂 tfmodules-as-a-service-stack"]
-        acr["📦 Azure Container Registry - ACR"]
+    subgraph workload["🚀 CAMADA 4: WORKLOAD · Dependência Obrigatória"]
+        CA["🚀 Container Apps Env<br/><code>cae-{name}-{region}-{md5}</code><br/>📌 enable_container_apps<br/>⚠️ REQUER: Observability<br/>Usa: VNet, ACR, MI<br/>Subnet: /27 delegada"]
     end
 
-    TF -.->|módulo externo| TFMOD
+    RG --> MI & VNET & OBS
+    
+    MI -.->|opcional| STORAGE & KV & SB & EG & SQL & ACR
+    VNET -.->|opcional| STORAGE & SQL & CA
+    
+    STORAGE -.->|opcional| KV
+    SB -.->|opcional| EG
+    SQL -.->|opcional| KV
+    ACR -.->|opcional| CA
+    
+    OBS ==>|"✓ OBRIGATÓRIO"| CA
+    MI -.->|opcional| CA
 
-    rg --> mi
-    rg --> vnet
-    rg --> obs
-    rg --> sa
-    rg --> sb
-    rg --> eg
-    rg --> sql
-    rg --> kv
-    rg --> cae
-
-    mi -.->|RBAC| sa
-    mi -.->|RBAC| sb
-    mi -.->|RBAC| eg
-    mi -.->|RBAC| kv
-    mi -.->|RBAC| acr
-    mi -.->|anexado| cae
-
-    vnet -.->|subnet| sa
-    vnet -.->|subnet| sql
-    vnet -.->|subnet delegada| cae
-
-    obs -->|obrigatório| cae
-    obs -.->|diagnostic settings| sa
-    obs -.->|diagnostic settings| sb
-    obs -.->|diagnostic settings| eg
-    obs -.->|diagnostic settings| sql
-    obs -.->|diagnostic settings| kv
-    obs -.->|diagnostic settings| acr
-
-    sql -.->|senha| kv
-    acr -.->|pull de imagem| cae
-
-    classDef foundation fill:#4A90D9,stroke:#2C5F8A,color:#fff
-    classDef security fill:#E74C3C,stroke:#C0392B,color:#fff
-    classDef workload fill:#F39C12,stroke:#D68910,color:#fff
-    classDef pipeline fill:#8E44AD,stroke:#6C3483,color:#fff
-    classDef gha fill:#2C3E50,stroke:#1A252F,color:#fff
-    classDef externalRepo fill:#1ABC9C,stroke:#16A085,color:#fff
-    classDef remoteState fill:#3498DB,stroke:#2471A3,color:#fff
-
-    class naming,rg,vnet foundation
-    class mi,kv security
-    class obs,sa,sb,eg,sql,cae workload
-    class tflint,tfsec,checkov pipeline
-    class plan,apply gha
-    class acr externalRepo
-    class state_rg,state_sa,state_blob remoteState
+    style base fill:#374151,color:#f3f4f6,stroke:#4b5563
+    style foundation fill:#0d1117,color:#c9d1d9,stroke:#30363d
+    style services fill:#0d1117,color:#c9d1d9,stroke:#30363d
+    style workload fill:#1f2937,color:#f3f4f6,stroke:#374151
+    
+    style RG fill:#0078D4,color:#fff
+    style MI fill:#48bb78,color:#fff
+    style VNET fill:#3182ce,color:#fff
+    style OBS fill:#ed64a6,color:#fff
+    style STORAGE fill:#38a169,color:#fff
+    style KV fill:#38a169,color:#fff
+    style SB fill:#2d3748,color:#fff
+    style EG fill:#2d3748,color:#fff
+    style SQL fill:#4c51bf,color:#fff
+    style ACR fill:#6366f1,color:#fff
+    style CA fill:#f59e0b,color:#000
+    
+    style storage_group fill:#1a202c,color:#e2e8f0,stroke:#4a5568
+    style messaging_group fill:#1a202c,color:#e2e8f0,stroke:#4a5568
+    style data_group fill:#1a202c,color:#e2e8f0,stroke:#4a5568
+    style registry_group fill:#1a202c,color:#e2e8f0,stroke:#4a5568
 ```
