@@ -15,7 +15,7 @@ variable "name" {
 variable "location" {
   description = "Azure region for resources"
   type        = string
-  default     = "eastus"
+  default     = "brazilsouth"
 }
 
 # Feature flags - all enabled by default
