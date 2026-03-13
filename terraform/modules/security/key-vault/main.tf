@@ -56,6 +56,7 @@ resource "azurerm_role_assignment" "managed_identity_secrets_user" {
 
 # Create secrets
 #checkov:skip=CKV_AZURE_41:Secret expiration managed via lifecycle ignore - rotated by platform operations
+#trivy:ignore:AVD-AZU-0017 expiration_date is set via timeadd(plantimestamp(), "8760h") - Trivy cannot evaluate this function statically
 resource "azurerm_key_vault_secret" "secrets" {
   for_each        = var.secrets
   name            = each.key

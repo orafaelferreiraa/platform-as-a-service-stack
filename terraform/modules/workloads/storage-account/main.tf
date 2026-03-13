@@ -3,6 +3,8 @@
 #tfsec:ignore:azure-storage-use-customer-managed-key CMK requires Premium tier - Standard storage uses Microsoft-managed keys
 #tfsec:ignore:azure-storage-queue-services-logging-enabled Classic Queue Analytics logging deprecated - using Azure Monitor Diagnostic Settings instead
 #tfsec:ignore:azure-storage-default-action-deny Network rules conditionally applied when VNet is enabled - GitHub-hosted runners require public access
+#trivy:ignore:AVD-AZU-0057 Classic Storage Analytics logging deprecated in azurerm 4.x - using Azure Monitor Diagnostic Settings for StorageRead/Write/Delete instead
+#trivy:ignore:AVD-AZU-0058 LRS is a deliberate cost-optimization choice - data can be reconstructed and no cross-region DR requirement exists
 resource "azurerm_storage_account" "main" {
   name                            = var.name
   location                        = var.location
@@ -12,6 +14,7 @@ resource "azurerm_storage_account" "main" {
   account_kind                    = "StorageV2"
   https_traffic_only_enabled      = true
   min_tls_version                 = "TLS1_2"
+  infrastructure_encryption_enabled = true
   allow_nested_items_to_be_public = false
   public_network_access_enabled   = true # Required for GitHub-hosted CI/CD runners - no static IPs for private endpoints
 
