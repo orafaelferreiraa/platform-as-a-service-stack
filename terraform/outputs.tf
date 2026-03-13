@@ -142,23 +142,23 @@ output "container_app_ready_config" {
     managed_identity_cid = var.enable_managed_identity ? module.managed_identity[0].client_id : null
 
     # Container Registry (AcrPush already assigned to MI — includes pull)
-    # registry_login_server = var.enable_container_registry ? module.container_registry[0].login_server : null
-    # registry_name         = var.enable_container_registry ? module.container_registry[0].name : null
+    registry_login_server = var.enable_container_registry ? module.container_registry[0].login_server : null
+    registry_name         = var.enable_container_registry ? module.container_registry[0].name : null
   } : null
 }
 
 # Container Registry outputs
-# output "container_registry_id" {
-#   description = "ID of the Container Registry"
-#   value       = var.enable_container_registry ? module.container_registry[0].id : null
-# }
+output "container_registry_id" {
+  description = "ID of the Container Registry"
+  value       = var.enable_container_registry ? module.container_registry[0].id : null
+}
 
-# output "container_registry_name" {
-#   description = "Name of the Container Registry"
-#   value       = var.enable_container_registry ? module.container_registry[0].name : null
-# }
+output "container_registry_name" {
+  description = "Name of the Container Registry"
+  value       = var.enable_container_registry ? module.container_registry[0].name : null
+}
 
-# output "container_registry_login_server" {
-#   description = "Login server URL of the Container Registry"
-#   value       = var.enable_container_registry ? module.container_registry[0].login_server : null
-# }
+output "container_registry_login_server" {
+  description = "Login server URL of the Container Registry"
+  value       = var.enable_container_registry ? module.container_registry[0].login_server : null
+}

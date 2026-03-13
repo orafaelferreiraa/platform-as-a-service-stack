@@ -49,11 +49,11 @@ on:
         required: false
         type: boolean
         default: true
-      # enable_container_registry:
-      #   description: 'Enable Container Registry (ACR)'
-      #   required: false
-      #   type: boolean
-      #   default: true
+      enable_container_registry:
+        description: 'Enable Container Registry (ACR)'
+        required: false
+        type: boolean
+        default: true
       enable_container_apps:
         description: 'Enable Container Apps (requires Observability)'
         required: false

@@ -15,7 +15,7 @@ variable "name" {
 variable "location" {
   description = "Azure region for resources"
   type        = string
-  default     = "eastus2"
+  default     = "eastus"
 }
 
 # Feature flags - all enabled by default
@@ -91,13 +91,13 @@ variable "tags" {
   default     = {}
 }
 
-# variable "container_registry_sku" {
-#   description = "SKU of the Container Registry. Possible values: Basic, Standard, Premium"
-#   type        = string
-#   default     = "Basic"
-#
-#   validation {
-#     condition     = contains(["Basic", "Standard", "Premium"], var.container_registry_sku)
-#     error_message = "SKU must be Basic, Standard, or Premium."
-#   }
-# }
+variable "container_registry_sku" {
+  description = "SKU of the Container Registry. Possible values: Basic, Standard, Premium"
+  type        = string
+  default     = "Basic"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.container_registry_sku)
+    error_message = "SKU must be Basic, Standard, or Premium."
+  }
+}

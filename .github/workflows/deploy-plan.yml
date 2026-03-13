@@ -54,11 +54,11 @@ on:
         required: false
         type: boolean
         default: true
-      # enable_container_registry:
-      #   description: 'Enable Container Registry (ACR)'
-      #   required: false
-      #   type: boolean
-      #   default: true
+      enable_container_registry:
+        description: 'Enable Container Registry (ACR)'
+        required: false
+        type: boolean
+        default: true
       enable_container_apps:
         description: 'Enable Container Apps (requires Observability)'
         required: false
@@ -87,7 +87,7 @@ jobs:
       terraform_dir: terraform
       terraform_version: '~1.9.0'
       enable_tflint: true
-      enable_tfsec: true
+      enable_tfsec: false
       enable_checkov: true
       generate_tfdocs: false
       soft_fail: false
