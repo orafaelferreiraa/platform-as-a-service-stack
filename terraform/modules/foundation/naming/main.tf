@@ -29,6 +29,5 @@ locals {
   # Resources that need global uniqueness include the suffix
   base_name_pattern        = "${local.name}-${local.location_abbr}"
   base_name_pattern_unique = "${local.name}-${local.location_abbr}-${local.suffix}"
-  base_name_no_separator   = "${local.name}${local.location_abbr}"
   base_name_unique_compact = "${local.name}${local.location_abbr}${local.suffix}"
 }
