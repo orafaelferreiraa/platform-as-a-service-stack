@@ -90,8 +90,8 @@ jobs:
       TF_VAR_enable_service_bus: ${{ inputs.enable_service_bus }}
       TF_VAR_enable_event_grid: ${{ inputs.enable_event_grid }}
       TF_VAR_enable_sql: ${{ inputs.enable_sql }}
-      # TF_VAR_enable_container_registry: ${{ inputs.enable_container_registry }}
-      TF_VAR_enable_container_registry: false
+      TF_VAR_enable_container_registry: ${{ inputs.enable_container_registry }}
+      #TF_VAR_enable_container_registry: false
       TF_VAR_enable_container_apps: ${{ inputs.enable_container_apps }}
     
     defaults:
@@ -163,7 +163,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~1.9.0"
+          terraform_version: "~1.14.0"
 
       - name: Cache Terraform providers
         uses: actions/cache@v4
