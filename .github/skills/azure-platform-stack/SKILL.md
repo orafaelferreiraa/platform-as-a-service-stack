@@ -31,8 +31,8 @@ This skill provides expert guidance for Azure infrastructure operations in the *
 **Non-configurable settings:**
 - **Region**: `eastus2` (hardcoded, not configurable)
 - **Location Abbreviation**: `eus2`
-- **Terraform Version**: >= 1.9.0
-- **Provider Version**: azurerm ~> 4.57.0, random ~> 3.8.0, time ~> 0.13.0
+- **Terraform Version**: ~> 1.14
+- **Provider Version**: azurerm ~> 4.64.0, random ~> 3.8.1, time ~> 0.13.1
 - **State Backend**: Azure Blob Storage with `use_azuread_auth = true`
 
 ### Naming Convention
@@ -85,16 +85,16 @@ resource "null_resource" "validate_container_apps" {
 
 ```hcl
 terraform {
-  required_version = ">= 1.9.0"
+  required_version = "~> 1.14"
   
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.57.0"  # MANDATORY: ~> constraint
+      version = "~> 4.64.0"  # MANDATORY: ~> constraint
     }
     random = {
       source  = "hashicorp/random"
-      version = "~> 3.8.0"
+      version = "~> 3.8.1"
     }
     time = {
       source  = "hashicorp/time"
@@ -160,7 +160,7 @@ module "container_registry" {
 variable "enable_container_registry" {
   description = "Enable Azure Container Registry"
   type        = bool
-  default     = true
+  # No default — value comes from pipeline workflow_dispatch
 }
 
 variable "container_registry_sku" {
@@ -209,18 +209,8 @@ module "container_apps" {
 }
 ```
 
-**New composite output:**
-```hcl
-output "container_app_ready_config" {
-  description = "Composite config for Container Apps with ACR and MI pre-wired"
-  value = var.enable_container_apps ? {
-    environment_id          = module.container_apps[0].environment_id
-    managed_identity_id     = var.enable_managed_identity ? module.managed_identity[0].id : null
-    container_registry_url  = var.enable_container_registry ? module.container_registry[0].login_server : null
-    container_registry_name = var.enable_container_registry ? module.container_registry[0].name : null
-    rbac_roles_assigned     = var.enable_container_registry && var.enable_managed_identity ? ["AcrPush", "AcrPull"] : []
-  } : null
-}
+**Outputs (individual, no resource IDs):**
+The root `outputs.tf` exposes only safe values: `container_apps_environment_name`, `container_apps_environment_default_domain`, `container_apps_environment_static_ip`, `container_registry_name`, `container_registry_login_server`. Resource IDs were removed because they expose the subscription ID.
 ```
 
 **Key points:**
@@ -329,7 +319,7 @@ resource "azurerm_resource_group" "main" {
 
 ### Provider Version Management
 
-> See `terraform-platform-instructions.md` — Provider versions. Use `~> 4.57.0` for azurerm, `>= 1.9.0` for Terraform. Always pin with `~>` constraint and check latest via MCP before generating code.
+> See `terraform-platform-instructions.md` — Provider versions. Use `~> 4.64.0` for azurerm, `~> 1.14` for Terraform. Always pin with `~>` constraint and check latest via MCP before generating code.
 
 ### Security Standards
 

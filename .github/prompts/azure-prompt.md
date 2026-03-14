@@ -59,7 +59,7 @@ Use semantic_search and grep_search:
    terraform/modules/workloads/${input:resource-type}/
    ├── main.tf         # Resource + RBAC + network rules
    ├── variables.tf    # name, location, tags, managed_identity_principal_id
-   ├── outputs.tf      # id, name, endpoints (NO secrets)
+   ├── outputs.tf      # name, endpoints (NO resource IDs, NO secrets)
    ```
 4. **Add feature flag(s)**:
    ```hcl
@@ -67,7 +67,7 @@ Use semantic_search and grep_search:
    variable "enable_${input:resource-type}" {
      description = "Enable ${input:resource-type}"
      type        = bool
-     default     = true
+     # No default — value comes from pipeline workflow_dispatch
    }
    # For Container Registry, also add:
    # variable "container_registry_sku" {

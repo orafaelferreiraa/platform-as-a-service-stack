@@ -58,7 +58,7 @@ terraform init \
 terraform/modules/{domain}/{resource}/
 ├── main.tf         # Resource + RBAC + network rules
 ├── variables.tf    # name, location, tags, managed_identity_principal_id
-├── outputs.tf      # IDs, URIs, names (NO secret values)
+├── outputs.tf      # Names, FQDNs, URIs (NO resource IDs, NO secret values)
 ```
 
 **Workloads include**:
@@ -132,7 +132,7 @@ module "container_apps" {
 - **SKU**: Controlled by `container_registry_sku` (string, default `"Basic"`)
 - **RBAC**: When `enable_managed_identity = true`, AcrPush + AcrPull roles are auto-assigned to the Managed Identity
 - **Container Apps Integration**: When both `enable_container_registry` and `enable_managed_identity` are true, Container Apps receives MI pre-attached + ACR `login_server`
-- **Output**: `container_app_ready_config` — composite zero-config output bundling MI + ACR login server for Container Apps
+- **Output**: Individual outputs (`container_apps_environment_name`, `container_apps_environment_default_domain`, `container_registry_login_server`) — no composite output with resource IDs
 
 ### Deterministic Patterns
 > See `terraform-platform-instructions.md` for MD5 naming, uuidv5 RBAC, and 180s time_sleep patterns with ❌/✅ examples.
@@ -246,12 +246,12 @@ variable "subscription_ids" {
 ```terraform
 # versions.tf
 terraform {
-  required_version = ">= 1.9.0"
+  required_version = "~> 1.14"
 
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.57.0"    # Allows patch updates (4.57.x)
+      version = "~> 4.64.0"    # Allows patch updates (4.64.x)
     }
     azuread = {
       source  = "hashicorp/azuread"
@@ -316,12 +316,12 @@ terraform {
 **providers.tf:**
 ```terraform
 terraform {
-  required_version = ">= 1.9.0"
+  required_version = "~> 1.14"
 
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.57.0"
+      version = "~> 4.64.0"
     }
   }
 }
@@ -658,8 +658,8 @@ terraform fmt -recursive
 # Validate syntax
 terraform validate
 
-# Check for security issues (if tfsec is installed)
-tfsec .
+# Check for security issues (if trivy is installed)
+trivy fs .
 
 # Validate provider versions
 terraform version

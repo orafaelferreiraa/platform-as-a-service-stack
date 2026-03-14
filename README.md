@@ -34,7 +34,7 @@ Tudo **automatizado**, **seguro** e **repetível**. O desenvolvedor não precisa
 ## Implementação Principal
 - ✅ **Nomenclatura Determinística**: Sufixos baseados em MD5 para nomes de recursos globalmente únicos (sem ciclos de destroy/recreate do `random_string`)
 - ✅ **Segurança RBAC-First**: Todos os recursos usam autenticação Azure AD e controle de acesso baseado em roles
-- ✅ **Feature Flags**: Todos os recursos são opcionais via variáveis `enable_*` com validação de dependências
+- ✅ **Feature Flags**: Todos os recursos são controlados via variáveis `enable_*` sem defaults — valores definidos pela pipeline
 - ✅ **Propagação RBAC Temporizada**: 180s de `time_sleep` antes de criar secrets para garantir propagação do RBAC no Azure AD
 - ✅ **Role Assignments Determinísticos**: Todos os role assignments usam `uuidv5()` para IDs estáveis entre applies
 - ✅ **Observabilidade Completa**: Diagnostic settings integrados quando a Observabilidade está habilitada
@@ -44,8 +44,7 @@ Tudo **automatizado**, **seguro** e **repetível**. O desenvolvedor não precisa
 - **Rede**: VNet Spoke com subnets default + delegadas para Container Apps
 - **Segurança**: Key Vault (RBAC habilitado), Managed Identity
 - **Workloads**: Storage Account (somente Azure AD), Service Bus (Standard), Event Grid, SQL Server (admin AAD), Observabilidade, Container Registry (ACR), Container Apps
-- **Integração Zero-Config**: Container Apps Environment já vem com MI anexada + roles ACR pré-configuradas — devs só definem o nome da imagem
-
+- **Integração Zero-Config**: Container Apps Environment já vem com MI anexada + roles ACR pré-configuradas — devs só definem o nome da imagem- ✅ **Outputs Limpos**: Apenas nomes, FQDNs, URIs e domínios expostos — sem IDs de recursos (que contêm subscription ID) e sem dados sensíveis
 ---
 
 ## Início Rápido
@@ -53,7 +52,7 @@ Tudo **automatizado**, **seguro** e **repetível**. O desenvolvedor não precisa
 ### 1. Pré-requisitos
 
 - Assinatura Azure
-- Terraform 1.9.0+
+- Terraform 1.14.0+
 - Repositório GitHub com Actions habilitado
 - Azure Service Principal com permissões apropriadas
 
@@ -71,7 +70,7 @@ Adicione os seguintes secrets ao seu repositório:
 
 A plataforma usa dois workflows separados:
 
-- **Plan** (`deploy-plan.yml`): Disparado em Pull Requests para `main` ou manualmente via `workflow_dispatch`. Executa a validação do [pipeline-as-a-service-stack](../pipeline-as-a-service-stack) (TFLint, tfsec, Checkov) antes do plan.
+- **Plan** (`deploy-plan.yml`): Disparado em Pull Requests para `main` ou manualmente via `workflow_dispatch`. Executa a validação do [pipeline-as-a-service-stack](../pipeline-as-a-service-stack) (TFLint, Trivy, Checkov) antes do plan.
 - **Apply** (`deploy-apply.yml`): Disparado em push para `main` ou manualmente via `workflow_dispatch`. Executa `terraform apply` com auto-approve.
 
 **Para fazer deploy:**
@@ -90,21 +89,23 @@ A plataforma usa dois workflows separados:
 
 ## Feature Flags
 
-Todos os recursos são controlados por feature flags booleanos. Habilite apenas o que precisar:
+Todos os recursos são controlados por feature flags booleanos **sem valor padrão** — os valores são definidos explicitamente pela pipeline (workflow_dispatch inputs). Habilite apenas o que precisar:
 
-| Flag | Recurso | Padrão | Dependências |
-|------|---------|--------|---------------|
-| `enable_managed_identity` | Managed Identity (User-Assigned) | `true` | **Recomendado por**: Storage, Service Bus, Event Grid, SQL, Key Vault |
-| `enable_vnet` | Virtual Network Spoke | `true` | Nenhuma |
-| `enable_observability` | Log Analytics + App Insights | `true` | **Obrigatório para**: Container Apps |
-| `enable_key_vault` | Key Vault com RBAC | `true` | Usa: Managed Identity, SQL (armazena senha) |
-| `enable_storage` | Storage Account | `true` | Usa: Managed Identity, VNet |
-| `enable_service_bus` | Service Bus Namespace | `true` | Usa: Managed Identity |
-| `enable_event_grid` | Event Grid Domain | `true` | Usa: Managed Identity, Service Bus |
-| `enable_sql` | SQL Server & Database | `true` | Usa: Managed Identity, VNet |
-| `enable_container_registry` | Container Registry (ACR) | `true` | Usa: Managed Identity |
-| `container_registry_sku` | SKU do Container Registry | `"Basic"` | Basic, Standard, Premium |
-| `enable_container_apps` | Container Apps Environment | `true` | **Requer**: Observabilidade; Usa: Container Registry, MI |
+| Flag | Recurso | Dependências |
+|------|---------|---------------|
+| `enable_managed_identity` | Managed Identity (User-Assigned) | **Recomendado por**: Storage, Service Bus, Event Grid, SQL, Key Vault, Container Registry |
+| `enable_vnet` | Virtual Network Spoke | Nenhuma |
+| `enable_observability` | Log Analytics + App Insights | **Obrigatório para**: Container Apps |
+| `enable_key_vault` | Key Vault com RBAC | Usa: Managed Identity, SQL (armazena senha) |
+| `enable_storage` | Storage Account | Usa: Managed Identity, VNet |
+| `enable_service_bus` | Service Bus Namespace | Usa: Managed Identity |
+| `enable_event_grid` | Event Grid Domain | Usa: Managed Identity, Service Bus |
+| `enable_sql` | SQL Server & Database | Usa: Managed Identity, VNet |
+| `enable_container_registry` | Container Registry (ACR) | Usa: Managed Identity |
+| `container_registry_sku` | SKU do Container Registry | Basic, Standard, Premium (default: `"Basic"`) |
+| `enable_container_apps` | Container Apps Environment | **Requer**: Observabilidade; Usa: Container Registry, MI |
+
+> **Nota**: Nenhum `enable_*` possui `default` no Terraform. Os valores são obrigatoriamente passados via `TF_VAR_*` nos workflows `deploy-plan.yml` e `deploy-apply.yml`.
 
 ---
 
@@ -227,10 +228,20 @@ graph TD
 ## Exemplos de Uso
 
 ### Deploy Completo (todos os recursos)
-```hcl
+Via **workflow_dispatch**, marque todos os checkboxes como `true`. Os valores são passados como `TF_VAR_enable_*` para o Terraform.
+
+```
 name = "myplatform"
-# Todos os enable_* flags são true por padrão
-# Inclui: MI, VNet, Observabilidade, Key Vault, Storage, Service Bus, Event Grid, SQL, Container Registry, Container Apps
+enable_managed_identity = true
+enable_vnet = true
+enable_observability = true
+enable_key_vault = true
+enable_storage = true
+enable_service_bus = true
+enable_event_grid = true
+enable_sql = true
+enable_container_registry = true
+enable_container_apps = true
 ```
 
 ## Convenções de Nomenclatura
@@ -274,7 +285,7 @@ Todos os recursos seguem os padrões do [Microsoft Cloud Adoption Framework](htt
                      ▼
 ┌─────────────────────────────────────────────────────────┐
 │            pipeline-as-a-service-stack                    │
-│   (TFLint, tfsec, Checkov, terraform-docs, tf-cost)      │
+│   (TFLint, Trivy, Checkov, terraform-docs, tf-cost)       │
 └────────────────────┬────────────────────────────────────┘
                      │
                      ▼
@@ -305,7 +316,7 @@ Todos os recursos seguem os padrões do [Microsoft Cloud Adoption Framework](htt
 
 ### CI/CD Pipeline — GitHub Actions
 
-2 workflows coordenados: `deploy-plan.yml` (PR) e `deploy-apply.yml` (push main). Ambos executam validação via `pipeline-as-a-service-stack` (TFLint, tfsec, Checkov, terraform-docs). Apply dispara automaticamente após merge. Reusable workflow externo centraliza todas as validações de segurança e infraestrutura.
+2 workflows coordenados: `deploy-plan.yml` (PR) e `deploy-apply.yml` (push main). Ambos executam validação via `pipeline-as-a-service-stack` (TFLint, Trivy, Checkov, terraform-docs). Apply dispara automaticamente após merge. Reusable workflow externo centraliza todas as validações de segurança e infraestrutura.
 
 ```mermaid
 flowchart TB
@@ -319,8 +330,8 @@ flowchart TB
         direction TB
         plan_core["🔧 Pipeline Core Validation<br/><i>orafaelferreiraa/pipeline-as-a-service-stack</i>"]
         plan_core --> tflint_p["🔍 tflint"]
-        tflint_p --> tfsec_p["🛡️ tfsec"]
-        tfsec_p --> checkov_p["✅ checkov"]
+        tflint_p --> trivy_p["🛡️ trivy"]
+        trivy_p --> checkov_p["✅ checkov"]
         checkov_p --> tf_plan["📝 terraform plan<br/><code>-out=tfplan</code>"]
         tf_plan --> plan_artifact["📤 Upload Artifact<br/><code>terraform-plan (7d)</code>"]
         tf_plan --> pr_comment["💬 PR Comment<br/><code>actions/github-script@v7</code>"]
@@ -332,8 +343,8 @@ flowchart TB
         apply_core["🔧 Pipeline Core Validation<br/><i>pipeline-as-a-service-stack</i>"]
         apply_check --> apply_core
         apply_core --> tflint_a["🔍 tflint"]
-        tflint_a --> tfsec_a["🛡️ tfsec"]
-        tfsec_a --> checkov_a["✅ checkov"]
+        tflint_a --> trivy_a["🛡️ trivy"]
+        trivy_a --> checkov_a["✅ checkov"]
         checkov_a --> tf_apply["⚡ terraform apply<br/><code>-auto-approve</code>"]
         tf_apply --> tfdocs["📄 terraform-docs<br/><code>inject → README.md</code>"]
         tfdocs --> docs_commit["🤖 git commit + push<br/><code>github-actions[bot]</code>"]

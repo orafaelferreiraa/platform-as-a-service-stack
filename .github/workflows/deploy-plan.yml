@@ -114,8 +114,7 @@ jobs:
       TF_VAR_enable_service_bus: ${{ github.event_name == 'pull_request' || inputs.enable_service_bus }}
       TF_VAR_enable_event_grid: ${{ github.event_name == 'pull_request' || inputs.enable_event_grid }}
       TF_VAR_enable_sql: ${{ github.event_name == 'pull_request' || inputs.enable_sql }}
-      # TF_VAR_enable_container_registry: ${{ github.event_name == 'pull_request' || inputs.enable_container_registry }}
-      TF_VAR_enable_container_registry: false
+      TF_VAR_enable_container_registry: ${{ github.event_name == 'pull_request' || inputs.enable_container_registry }}
       TF_VAR_enable_container_apps: ${{ github.event_name == 'pull_request' || inputs.enable_container_apps }}
     
     defaults:
@@ -152,7 +151,7 @@ jobs:
           echo "| Service Bus | ${{ inputs.enable_service_bus == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Event Grid | ${{ inputs.enable_event_grid == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| SQL Server & Database | ${{ inputs.enable_sql == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
-          # echo "| Container Registry | ${{ inputs.enable_container_registry == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Registry | ${{ inputs.enable_container_registry == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Container Apps | ${{ inputs.enable_container_apps == true && '✅ Yes' || '❌ No' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
@@ -173,7 +172,7 @@ jobs:
             if [ "${{ inputs.enable_event_grid }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, Event Grid"; fi
             if [ "${{ inputs.enable_sql }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, SQL"; fi
             if [ "${{ inputs.enable_key_vault }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, Key Vault"; fi
-            # if [ "${{ inputs.enable_container_registry }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, Container Registry"; fi
+            if [ "${{ inputs.enable_container_registry }}" == "true" ]; then NEEDS_IDENTITY=true; RESOURCES_NEEDING="$RESOURCES_NEEDING, Container Registry"; fi
             if [ "$NEEDS_IDENTITY" == "true" ]; then
               echo "### ⚠️ Managed Identity Warning" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
@@ -225,7 +224,7 @@ jobs:
           HAS_EVENT_GRID=$(echo "$STATE_RESOURCES" | grep -c "module.event_grid" 2>/dev/null | tr -d ' \n' || echo "0")
           HAS_SQL=$(echo "$STATE_RESOURCES" | grep -c "module.sql" 2>/dev/null | tr -d ' \n' || echo "0")
           HAS_KEY_VAULT=$(echo "$STATE_RESOURCES" | grep -c "module.key_vault" 2>/dev/null | tr -d ' \n' || echo "0")
-          # HAS_CONTAINER_REGISTRY=$(echo "$STATE_RESOURCES" | grep -c "module.container_registry" 2>/dev/null | tr -d ' \n' || echo "0")
+          HAS_CONTAINER_REGISTRY=$(echo "$STATE_RESOURCES" | grep -c "module.container_registry" 2>/dev/null | tr -d ' \n' || echo "0")
           HAS_CONTAINER_APPS=$(echo "$STATE_RESOURCES" | grep -c "module.container_apps" 2>/dev/null | tr -d ' \n' || echo "0")
           
           # Force enable flags for resources that already exist in state
@@ -261,10 +260,10 @@ jobs:
             echo "TF_VAR_enable_key_vault=true" >> $GITHUB_ENV
             echo "⚠️  Forcing enable_key_vault=true (resource exists in state)"
           fi
-          # if [ "$HAS_CONTAINER_REGISTRY" -gt "0" ]; then
-          #   echo "TF_VAR_enable_container_registry=true" >> $GITHUB_ENV
-          #   echo "⚠️  Forcing enable_container_registry=true (resource exists in state)"
-          # fi
+          if [ "$HAS_CONTAINER_REGISTRY" -gt "0" ]; then
+            echo "TF_VAR_enable_container_registry=true" >> $GITHUB_ENV
+            echo "⚠️  Forcing enable_container_registry=true (resource exists in state)"
+          fi
           if [ "$HAS_CONTAINER_APPS" -gt "0" ]; then
             echo "TF_VAR_enable_container_apps=true" >> $GITHUB_ENV
             echo "⚠️  Forcing enable_container_apps=true (resource exists in state)"
@@ -311,10 +310,10 @@ jobs:
             echo "Including Key Vault (enabled: ${{ inputs.enable_key_vault }}, in state: $HAS_KEY_VAULT)"
           fi
           
-          # if [ "${{ inputs.enable_container_registry }}" == "true" ] || [ "$HAS_CONTAINER_REGISTRY" -gt "0" ]; then 
-          #   TARGETS="$TARGETS -target=module.container_registry"
-          #   echo "Including Container Registry (enabled: ${{ inputs.enable_container_registry }}, in state: $HAS_CONTAINER_REGISTRY)"
-          # fi
+          if [ "${{ inputs.enable_container_registry }}" == "true" ] || [ "$HAS_CONTAINER_REGISTRY" -gt "0" ]; then 
+            TARGETS="$TARGETS -target=module.container_registry"
+            echo "Including Container Registry (enabled: ${{ inputs.enable_container_registry }}, in state: $HAS_CONTAINER_REGISTRY)"
+          fi
           
           if [ "${{ inputs.enable_container_apps }}" == "true" ] || [ "$HAS_CONTAINER_APPS" -gt "0" ]; then 
             TARGETS="$TARGETS -target=module.container_apps"

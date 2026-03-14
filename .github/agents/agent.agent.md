@@ -31,7 +31,7 @@ Develops, validates, and fixes Azure infrastructure code. **Agent makes decision
 - SQL Diagnostic Settings with correct categories
 - Container Apps VNet integration with workload profiles
 - Container Registry (ACR) configuration with feature flags (`enable_container_registry`, `container_registry_sku`)
-- Zero-config Container Apps integration (MI + ACR login_server auto-wired via `container_app_ready_config` output)
+- Zero-config Container Apps integration (MI + ACR login_server auto-wired internally; devs reference outputs by name/FQDN)
 
 ❌ **NOT for:**
 - General Terraform tutorials or Azure basics
@@ -144,7 +144,7 @@ USER: "ManagedEnvironmentSubnetIsDelegated error"
 4. **Propagation**: 180s `time_sleep` between role assignment and resource creation
 5. **Orchestration**: Root [main.tf](../../terraform/main.tf) ONLY for module interdependencies
 6. **Count**: Boolean flags only (`enable_*`), never null checks
-7. **Outputs**: IDs and URIs only, never secrets
+7. **Outputs**: Names, FQDNs, and URIs only — never resource IDs (contain subscription ID) or secrets
 8. **Validation**: `terraform validate` + `terraform plan` after every change
 9. **External Modules**: Pin version via `?ref=`, never unversioned git sources
 
@@ -191,7 +191,7 @@ USER: "ManagedEnvironmentSubnetIsDelegated error"
 
 ## Files Created
 ✅ main.tf (resource + RBAC + network rules)
-✅ outputs.tf (IDs only, no secrets)
+✅ outputs.tf (names/FQDNs/URIs only, no resource IDs or secrets)
 ✅ variables.tf (consistent inputs)
 ✅ Feature flag added to variables.tf
 ✅ Module called in main.tf

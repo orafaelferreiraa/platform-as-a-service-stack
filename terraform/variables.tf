@@ -18,53 +18,45 @@ variable "location" {
   default     = "brazilsouth"
 }
 
-# Feature flags - all enabled by default
+# Feature flags — no defaults, values come from pipeline
 variable "enable_managed_identity" {
   description = "Enable Managed Identity (required by: Storage, Service Bus, Event Grid, SQL, Key Vault for RBAC)"
   type        = bool
-  default     = true
 }
 
 variable "enable_vnet" {
   description = "Enable Virtual Network Spoke"
   type        = bool
-  default     = true
 }
 
 variable "enable_observability" {
   description = "Enable Observability (Log Analytics, Application Insights)"
   type        = bool
-  default     = true
 }
 
 variable "enable_key_vault" {
   description = "Enable Key Vault"
   type        = bool
-  default     = true
 }
 
 variable "enable_storage" {
   description = "Enable Storage Account"
   type        = bool
-  default     = true
 }
 
 variable "enable_service_bus" {
   description = "Enable Service Bus"
   type        = bool
-  default     = true
 }
 
 variable "enable_event_grid" {
   description = "Enable Event Grid"
   type        = bool
-  default     = true
 }
 
 variable "enable_sql" {
   description = "Enable SQL Server and Database"
   type        = bool
-  default     = true
 }
 
 variable "sql_administrator_login" {
@@ -76,13 +68,11 @@ variable "sql_administrator_login" {
 variable "enable_container_registry" {
   description = "Enable Container Registry (ACR) — currently disabled"
   type        = bool
-  default     = false
 }
 
 variable "enable_container_apps" {
   description = "Enable Container Apps Environment"
   type        = bool
-  default     = true
 }
 
 variable "tags" {

@@ -56,7 +56,7 @@ Read these instruction files:
 terraform/modules/workloads/${input:component-name}/
 ├── main.tf         # Resource + RBAC + network rules
 ├── variables.tf    # name, location, tags, managed_identity_principal_id
-├── outputs.tf      # IDs, URIs, names (NO secret values)
+├── outputs.tf      # Names, FQDNs, URIs (NO resource IDs, NO secret values)
 ```
 
 ### If Using External Module (e.g., Container Registry):
@@ -74,7 +74,7 @@ module "container_registry" {
 ```
 - **RBAC**: AcrPush + AcrPull assigned to Managed Identity via `uuidv5("dns", "...")`
 - **Container Apps zero-config**: MI pre-attached + ACR `login_server` passed through
-- **Output**: `container_app_ready_config` composite output bundles MI + ACR for consumption
+- **Output**: Individual outputs for environment name/domain/IP and registry name/login_server (no composite output with IDs)
 
 **MANDATORY Module Pattern**:
 ```hcl
@@ -143,7 +143,8 @@ terraform plan -var-file=test.tfvars
 - ❌ NEVER skip time_sleep for RBAC (180s required)
 - ❌ NEVER use != null in count (use boolean flags)
 - ❌ NEVER create inter-module dependencies (orchestrate at root)
-- ❌ NEVER export secret values in outputs (only IDs/URIs)
+- ❌ NEVER export resource IDs in outputs (they contain subscription ID)
+- ❌ NEVER export secret values in outputs
 - ❌ NEVER use unpinned provider versions
 - ❌ NEVER inline external modules without pinned git ref
 - ✅ ALWAYS validate via MCP before generating code

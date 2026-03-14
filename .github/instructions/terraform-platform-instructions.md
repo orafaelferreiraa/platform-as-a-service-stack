@@ -39,11 +39,11 @@ mcp_hashicorp_ter_get_module_details(module_id: "Azure/naming/azurerm/0.4.1")
 ## Platform Stack Terraform Architecture
 
 ### Fixed Configuration
-- **Terraform Version**: >= 1.9.0
+- **Terraform Version**: ~> 1.14
 - **Provider Versions**: 
-  - azurerm: ~> 4.57.0
-  - random: ~> 3.8.0
-  - time: ~> 0.13.0
+  - azurerm: ~> 4.64.0
+  - random: ~> 3.8.1
+  - time: ~> 0.13.1
 - **Region**: eastus2 (hardcoded)
 - **State Backend**: Azure Blob Storage with Azure AD authentication
 
@@ -215,15 +215,10 @@ variable "managed_identity_principal_id" {
 ```
 
 ### Module Outputs Pattern
-**Export ONLY IDs, URIs, names, principals - NEVER secret values**:
+**Export ONLY names, FQDNs, URIs, principals - NEVER resource IDs (contain subscription ID) or secret values**:
 
 ```terraform
-# outputs.tf
-output "id" {
-  description = "Resource ID for dependencies"
-  value       = azurerm_storage_account.main.id
-}
-
+# outputs.tf — root module exposes only safe values
 output "name" {
   description = "Resource name"
   value       = azurerm_storage_account.main.name
@@ -233,6 +228,11 @@ output "primary_blob_endpoint" {
   description = "Primary Blob service endpoint"
   value       = azurerm_storage_account.main.primary_blob_endpoint
 }
+
+# ❌ WRONG - Never export resource IDs (expose subscription ID)
+# output "id" {
+#   value = azurerm_storage_account.main.id
+# }
 
 # ❌ WRONG - Never export secret values
 # output "primary_access_key" {
@@ -326,17 +326,9 @@ module "container_apps" {
   
   depends_on = [module.observability]
 }
-
-# Composite output — zero-config for Container Apps consumers
-output "container_app_ready_config" {
-  description = "Pre-wired config for deploying containers (environment + identity + registry)"
-  value = var.enable_container_apps ? {
-    environment_id                  = module.container_apps[0].environment_id
-    managed_identity_id             = var.enable_managed_identity ? module.managed_identity[0].id : null
-    container_registry_login_server = var.enable_container_registry ? module.container_registry[0].login_server : null
-  } : null
-}
 ```
+
+> **Note**: The root `outputs.tf` exposes only safe values (names, FQDNs, URIs, domains, IPs). Resource IDs are NOT exported because they contain the subscription ID. The `container_app_ready_config` composite output was removed for the same reason.
 
 ---
 
@@ -357,41 +349,35 @@ variable "name" {
   }
 }
 
-# Feature flags (all default true)
+# Feature flags (no defaults — values come from pipeline)
 variable "enable_managed_identity" {
   description = "Enable User-Assigned Managed Identity (RECOMMENDED for RBAC)"
   type        = bool
-  default     = true
 }
 
 variable "enable_vnet" {
   description = "Enable VNet Spoke with default and delegated subnets"
   type        = bool
-  default     = true
 }
 
 variable "enable_observability" {
   description = "Enable Log Analytics + Application Insights (REQUIRED for Container Apps)"
   type        = bool
-  default     = true
 }
 
 variable "enable_storage" {
   description = "Enable Storage Account with RBAC authentication"
   type        = bool
-  default     = true
 }
 
 variable "enable_container_apps" {
   description = "Enable Container Apps Environment (REQUIRES enable_observability=true)"
   type        = bool
-  default     = true
 }
 
 variable "enable_container_registry" {
   description = "Enable Azure Container Registry (ACR) for container image storage"
   type        = bool
-  default     = true
 }
 
 variable "container_registry_sku" {
@@ -546,12 +532,12 @@ grep -n "azurerm_role_assignment" terraform/modules -r | grep -v "name ="
 ```terraform
 # terraform/providers.tf or versions.tf
 terraform {
-  required_version = ">= 1.9.0"
+  required_version = "~> 1.14"
   
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.57.0"  # Major.Minor locked, patch flexible
+      version = "~> 4.64.0"  # Major.Minor locked, patch flexible
     }
     random = {
       source  = "hashicorp/random"

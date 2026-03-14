@@ -34,12 +34,12 @@ applyTo: "**/{main.tf,providers.tf,*.tf}"
 ### Provider Configuration (MANDATORY)
 ```terraform
 terraform {
-  required_version = ">= 1.9.0"
+  required_version = "~> 1.14"
   
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.57.0"
+      version = "~> 4.64.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -226,7 +226,8 @@ mcp_hashicorp_ter_get_provider_details(namespace: "hashicorp", name: "azurerm", 
 - Current principal auto-granted Key Vault Administrator
 - 180s `time_sleep` before secret creation
 - Soft delete: 7-day retention
-- **NEVER export secret values** in outputs (only IDs/URIs)
+- **NEVER export resource IDs** in outputs (they expose subscription ID)
+- **NEVER export secret values** in outputs (only names/FQDNs/URIs)
 
 ### Container Apps
 **MCP Research**:
@@ -254,7 +255,7 @@ mcp_hashicorp_ter_get_provider_details(namespace: "hashicorp", name: "azurerm", 
 - **Source**: External module from `tfmodules-as-a-service-stack` repository
 - **Naming**: `cr{name}{region}{md5}` (e.g., `crmyplatformeus2abc1`) — **no hyphens, no dots** (Azure ACR restriction)
 - **SKU**: Configurable via `container_registry_sku` variable (`Basic`, `Standard`, or `Premium`; default `Basic`)
-- **Feature flag**: `enable_container_registry` (bool, default `true`)
+- **Feature flag**: `enable_container_registry` (bool, no default — set by pipeline)
 - **RBAC roles** (auto-assigned to Managed Identity via `uuidv5()`):
   - `AcrPush` — allows pushing images
   - `AcrPull` — allows pulling images
@@ -309,7 +310,7 @@ resource "null_resource" "validate_container_apps" {
 | Event Grid | - | Managed Identity, Service Bus | `enable_event_grid` |
 | SQL Server | - | Managed Identity, VNet | `enable_sql` |
 | Key Vault | SQL (if enabled) | Managed Identity | `enable_key_vault` |
-| Container Registry | - | Managed Identity (RBAC) | `enable_container_registry` (default `true`), `container_registry_sku` (default `"Basic"`) |
+| Container Registry | - | Managed Identity (RBAC) | `enable_container_registry` (no default), `container_registry_sku` (default `"Basic"`) |
 | Container Apps | **Observability** | VNet, Container Registry | `enable_container_apps` |
 
 ---

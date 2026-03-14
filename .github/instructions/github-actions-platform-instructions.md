@@ -178,7 +178,7 @@ on:
           - apply
         default: 'plan'
       
-      # Feature flags
+      # Feature flags (no defaults in Terraform — values from pipeline)
       enable_managed_identity:
         description: 'Enable Managed Identity'
         type: boolean
@@ -202,27 +202,27 @@ on:
       enable_service_bus:
         description: 'Enable Service Bus'
         type: boolean
-        default: false
+        default: true
       
       enable_event_grid:
         description: 'Enable Event Grid'
         type: boolean
-        default: false
+        default: true
       
       enable_sql:
         description: 'Enable SQL Server + Database'
         type: boolean
-        default: false
+        default: true
       
       enable_key_vault:
         description: 'Enable Key Vault'
         type: boolean
-        default: false
+        default: true
       
       enable_container_apps:
         description: 'Enable Container Apps (requires Observability)'
         type: boolean
-        default: false
+        default: true
       
       enable_container_registry:
         description: 'Enable Container Registry'

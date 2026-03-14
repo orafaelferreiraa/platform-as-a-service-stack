@@ -16,7 +16,7 @@ This skill provides expert guidance for creating, debugging, and optimizing GitH
 - **Repository**: platform-as-a-service-stack
 - **Branch**: main (protected, requires PR approval)
 - **Runner**: ubuntu-latest (GitHub-hosted)
-- **Terraform Version**: 1.9.0+
+- **Terraform Version**: 1.14.0+
 - **State Backend**: Azure Blob (rg-paas/storagepaas/tfstate)
 
 ### Required GitHub Secrets
